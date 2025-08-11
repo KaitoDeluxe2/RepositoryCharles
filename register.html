@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Register - Perpustakaan Digital</title>
+  <link href="css/bootstrap.min.css" rel="stylesheet">
+  <link href="css/styles.css" rel="stylesheet">
+</head>
+<body>
+  <div class="register-container">
+    <div class="left">
+      <h1 class="fw-bold">Buat Akun Gratis</h1>
+      <p>Gabung dan nikmati semua fitur perpustakaan digital.</p>
+    </div>
+    <div class="right">
+      <div class="form-box">
+        <h3 class="fw-bold text-center mb-4">Form Registrasi</h3>
+        <form action="register.php" method="POST">
+          <div class="mb-3">
+            <label for="email" class="form-label">Email</label>
+            <input type="email" id="email" name="email" class="form-control" required>
+          </div>
+          <div class="mb-3">
+            <label for="nim" class="form-label">NIM (Nomor Induk Mahasiswa)</label>
+            <input type="text" id="nim" name="nim" class="form-control" required>
+          </div>
+          <div class="mb-3">
+            <label for="username" class="form-label">Username</label>
+            <input type="text" id="username" name="username" class="form-control" required>
+          </div>
+          <div class="mb-3">
+            <label for="password" class="form-label">Password</label>
+            <input type="password" id="password" name="password" class="form-control" required>
+          </div>
+          <button type="submit" class="btn btn-dark w-100">Daftar</button>
+          <div class="text-center mt-3">
+            <small>Sudah punya akun? <a href="login.php">Login di sini</a></small>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+</body>
+</html>
