@@ -93,4 +93,3 @@ Untuk menjalankan proyek ini di komputer Anda, ikuti langkah-langkah berikut:
 
 -----
 
-Selesai\! Sekarang repositori Anda akan terlihat jauh lebih profesional dan mudah dipahami oleh siapa saja yang mengunjunginya.
