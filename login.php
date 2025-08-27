@@ -52,7 +52,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
     <div class="left-panel">
         <h1 class="fw-bold">Selamat Datang Kembali!</h1>
         <p>Login untuk mengakses akun dan fitur perpustakaan digital.</p>
-        <img src="img/logo_polibatam_clean_transparent.png" alt="Logo">
+        <img src="Gambar/logo_polibatam_clean_transparent.png" alt="Logo">
     </div>
     <div class="right-panel">
         <div class="form-box">

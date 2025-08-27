@@ -3,13 +3,34 @@ session_start();
 include '../includes/db.php';
 
 if (!isset($_SESSION['user_id'])) {
-    header("Location: login.php");
+    header("Location: ../login.php");
     exit;
 }
 
 $namaPengguna = htmlspecialchars($_SESSION['username']);
-// Ambil buku, kita butuh judulnya sekarang
-$books_result = $conn->query("SELECT id, judul, cover_path FROM buku ORDER BY id DESC LIMIT 12"); 
+
+// --- LOGIKA PENCARIAN ---
+$search_query = '';
+$sql = "SELECT id, judul, cover_path, penulis FROM buku";
+
+if (isset($_GET['search']) && !empty(trim($_GET['search']))) {
+    $search_query = trim($_GET['search']);
+    // Menambahkan klausa WHERE untuk mencari berdasarkan judul atau penulis
+    $sql .= " WHERE judul LIKE ? OR penulis LIKE ?";
+    $sql .= " ORDER BY id DESC";
+    
+    $stmt = $conn->prepare($sql);
+    $search_term = "%" . $search_query . "%";
+    $stmt->bind_param("ss", $search_term, $search_term);
+} else {
+    // Query default jika tidak ada pencarian
+    $sql .= " ORDER BY id DESC LIMIT 12";
+    $stmt = $conn->prepare($sql);
+}
+
+$stmt->execute();
+$books_result = $stmt->get_result();
+
 ?>
 <!DOCTYPE html>
 <html lang="id">
@@ -17,10 +38,10 @@ $books_result = $conn->query("SELECT id, judul, cover_path FROM buku ORDER BY id
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Perpustakaan Digital</title>
-<link href="../css/bootstrap.min.css" rel="stylesheet">
+  <link href="../css/bootstrap.min.css" rel="stylesheet">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
   <style>
-    /* ... (CSS dari sebelumnya tetap sama) ... */
+    /* ... (CSS dari sebelumnya tetap sama, tidak perlu diubah) ... */
     body { background-color: #f8f9fa; }
     .navbar-brand { font-weight: bold; }
     .hero-section {
@@ -38,7 +59,6 @@ $books_result = $conn->query("SELECT id, judul, cover_path FROM buku ORDER BY id
     .search-form .btn { border-radius: 0.3rem; }
     .section-title { font-weight: 700; margin-bottom: 1.5rem; }
     
-    /* [PERUBAHAN] Penyesuaian untuk kartu buku dan judul */
     .book-item .card {
         transition: transform .2s, box-shadow .2s;
         border: 1px solid #eee;
@@ -55,13 +75,12 @@ $books_result = $conn->query("SELECT id, judul, cover_path FROM buku ORDER BY id
         margin-top: 0.75rem;
         font-weight: 600;
         color: #343a40;
-        /* Mencegah judul yang terlalu panjang merusak layout */
         overflow: hidden;
         text-overflow: ellipsis;
         display: -webkit-box;
         -webkit-line-clamp: 2;
         -webkit-box-orient: vertical;
-        min-height: 42px; /* Memberi ruang untuk 2 baris judul */
+        min-height: 42px;
     }
   </style>
 </head>
@@ -76,8 +95,9 @@ $books_result = $conn->query("SELECT id, judul, cover_path FROM buku ORDER BY id
             <a class="nav-link dropdown-toggle" href="#" id="navbarDropdownMenuLink" role="button" data-bs-toggle="dropdown"><i class="bi bi-person-circle"></i> <?= $namaPengguna ?></a>
             <ul class="dropdown-menu dropdown-menu-end">
               <li><a class="dropdown-item" href="akun.php">Profile Saya</a></li>          
-<?php if (isset($_SESSION['role']) && $_SESSION['role'] === 'admin'): ?>
-  <li><a class="dropdown-item" href="../admin/">Admin Panel</a></li> <?php endif; ?>
+              <?php if (isset($_SESSION['role']) && $_SESSION['role'] === 'admin'): ?>
+              <li><a class="dropdown-item" href="../admin/">Admin Panel</a></li>
+              <?php endif; ?>
               <li><hr class="dropdown-divider"></li>
               <li><a class="dropdown-item text-danger" href="../logout.php">Logout</a></li>
             </ul>
@@ -92,8 +112,12 @@ $books_result = $conn->query("SELECT id, judul, cover_path FROM buku ORDER BY id
       <h1 class="display-5 fw-bold">Perpustakaan Digital Politeknik Negeri Batam</h1>
       <p class="lead">Temukan sumber referensi untuk menunjang perkuliahan Anda.</p>
       <div class="col-lg-8 mx-auto mt-4">
-        <form action="#" method="GET" class="search-form">
-          <div class="input-group"><input type="text" class="form-control form-control-lg" placeholder="Masukkan judul buku, penulis, atau kata kunci..."><button class="btn btn-primary px-4" type="submit"><i class="bi bi-search"></i></button></div>
+        <!-- [PERUBAHAN] Form pencarian sekarang fungsional -->
+        <form action="dashboard.php" method="GET" class="search-form">
+          <div class="input-group">
+            <input type="text" name="search" class="form-control form-control-lg" placeholder="Masukkan judul buku atau penulis..." value="<?= htmlspecialchars($search_query) ?>">
+            <button class="btn btn-primary px-4" type="submit"><i class="bi bi-search"></i></button>
+          </div>
         </form>
       </div>
     </div>
@@ -101,7 +125,13 @@ $books_result = $conn->query("SELECT id, judul, cover_path FROM buku ORDER BY id
 
   <main class="container my-5">
     <section class="book-collection">
-      <h2 class="section-title">Koleksi Terbaru</h2>
+      <!-- [PERUBAHAN] Judul dinamis berdasarkan pencarian -->
+      <?php if (!empty($search_query)): ?>
+        <h2 class="section-title">Hasil pencarian untuk: "<?= htmlspecialchars($search_query) ?>"</h2>
+      <?php else: ?>
+        <h2 class="section-title">Koleksi Terbaru</h2>
+      <?php endif; ?>
+      
       <div class="row row-cols-2 row-cols-md-4 row-cols-lg-6 g-4">
         
         <?php if ($books_result->num_rows > 0): ?>
@@ -110,7 +140,7 @@ $books_result = $conn->query("SELECT id, judul, cover_path FROM buku ORDER BY id
             <div class="book-item text-center">
               <a href="detail_buku.php?id=<?= $book['id'] ?>">
                 <div class="card shadow-sm">
-                    <img src="<?= htmlspecialchars($book['cover_path']) ?>" class="book-cover" alt="Cover Buku">
+                    <img src="../<?= htmlspecialchars($book['cover_path']) ?>" class="book-cover" alt="Cover Buku">
                 </div>
               </a>
               <h6 class="book-title">
@@ -122,8 +152,14 @@ $books_result = $conn->query("SELECT id, judul, cover_path FROM buku ORDER BY id
           </div>
           <?php endwhile; ?>
         <?php else: ?>
+          <!-- [PERUBAHAN] Pesan dinamis jika tidak ada hasil -->
           <div class="col-12 text-center py-5">
-            <p class="text-muted">Koleksi buku masih kosong.</p>
+            <?php if (!empty($search_query)): ?>
+                <p class="text-muted fs-5">Tidak ada buku yang cocok dengan pencarian Anda.</p>
+                <a href="dashboard.php" class="btn btn-primary mt-2">Lihat Semua Koleksi</a>
+            <?php else: ?>
+                <p class="text-muted fs-5">Koleksi buku masih kosong.</p>
+            <?php endif; ?>
           </div>
         <?php endif; ?>
         </div>
@@ -138,5 +174,6 @@ $books_result = $conn->query("SELECT id, judul, cover_path FROM buku ORDER BY id
 </body>
 </html>
 <?php
+$stmt->close();
 $conn->close();
 ?>

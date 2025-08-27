@@ -74,9 +74,9 @@ $conn->close();
                 </dl>
                 
                 <div class="d-grid gap-2 mt-4">
-                    <a href="baca_buku.php?file=<?= urlencode(basename($book['file_path'])) ?>" class="btn btn-primary btn-lg">
-                        <i class="bi bi-book-half"></i> Baca Sekarang
-                    </a>
+                    <a href="diskusi.php?id=<?= $book['id'] ?>" class="btn btn-primary btn-lg">
+    <i class="bi bi-chat-dots-fill"></i> Lihat Diskusi
+</a>
                     <a href="dashboard.php" class="btn btn-outline-secondary">
                         <i class="bi bi-arrow-left"></i> Kembali ke Daftar Buku
                     </a>
