@@ -3,7 +3,7 @@
 -- https://www.phpmyadmin.net/
 --
 -- Host: 127.0.0.1
--- Waktu pembuatan: 26 Sep 2025 pada 05.15
+-- Waktu pembuatan: 01 Okt 2025 pada 10.30
 -- Versi server: 10.4.32-MariaDB
 -- Versi PHP: 8.2.12
 
@@ -63,6 +63,7 @@ CREATE TABLE `diskusi` (
   `user_id` int(11) NOT NULL,
   `username` varchar(255) NOT NULL,
   `komentar` text NOT NULL,
+  `parent_id` int(11) NOT NULL DEFAULT 0,
   `tanggal` timestamp NOT NULL DEFAULT current_timestamp()
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
@@ -70,12 +71,19 @@ CREATE TABLE `diskusi` (
 -- Dumping data untuk tabel `diskusi`
 --
 
-INSERT INTO `diskusi` (`id`, `buku_id`, `user_id`, `username`, `komentar`, `tanggal`) VALUES
-(1, 10, 4, 'admin_utama', 'halo', '2025-08-11 04:19:36'),
-(2, 10, 5, 'Andi Wijaya', 'halo admin', '2025-08-11 04:30:28'),
-(3, 10, 4, 'admin_utama', 'test', '2025-08-27 02:55:14'),
-(4, 10, 5, 'Andi Wijaya', 'mantap', '2025-09-11 03:59:50'),
-(5, 4, 4, 'admin_utama', 'HALO SAYA ADMIN\r\n', '2025-09-22 09:12:11');
+INSERT INTO `diskusi` (`id`, `buku_id`, `user_id`, `username`, `komentar`, `parent_id`, `tanggal`) VALUES
+(2, 10, 5, 'Andi Wijaya', 'halo admin', 0, '2025-08-11 04:30:28'),
+(3, 10, 4, 'admin_utama', 'test', 0, '2025-08-27 02:55:14'),
+(4, 10, 5, 'Andi Wijaya', 'mantap', 0, '2025-09-11 03:59:50'),
+(5, 4, 4, 'admin_utama', 'HALO SAYA ADMIN\r\n', 0, '2025-09-22 09:12:11'),
+(7, 2, 5, 'Andi Wijaya', 'kommputer keren', 0, '2025-09-26 03:58:21'),
+(8, 10, 4, 'admin_utama', 'halo semua aku admin', 0, '2025-09-29 05:48:21'),
+(9, 10, 4, 'admin_utama', '[spoiler][/spoiler]', 0, '2025-09-29 05:50:06'),
+(10, 10, 4, 'admin_utama', 'mantap makasih', 2, '2025-09-29 05:55:50'),
+(11, 5, 4, 'admin_utama', 'halo namaku edu\r\n', 0, '2025-09-29 05:59:24'),
+(12, 5, 4, 'admin_utama', 'halo juga namaku edward', 11, '2025-09-29 05:59:36'),
+(13, 2, 4, 'admin_utama', 'oke\r\n', 7, '2025-09-29 08:49:10'),
+(14, 10, 4, 'admin_utama', 'p', 2, '2025-10-01 08:26:58');
 
 -- --------------------------------------------------------
 
@@ -105,6 +113,7 @@ INSERT INTO `mahasiswa_resmi` (`nim`, `nama_lengkap`) VALUES
 
 CREATE TABLE `users` (
   `id` int(11) NOT NULL,
+  `name` varchar(100) DEFAULT NULL,
   `username` varchar(100) NOT NULL,
   `email` varchar(100) NOT NULL,
   `nim` varchar(20) DEFAULT NULL,
@@ -116,10 +125,10 @@ CREATE TABLE `users` (
 -- Dumping data untuk tabel `users`
 --
 
-INSERT INTO `users` (`id`, `username`, `email`, `nim`, `password`, `role`) VALUES
-(2, 'Budi Santoso', 'nelsonmeylina@gmail.com', '3312301001', '$2y$10$Tx2duiM4Pz/fHHJI5aOMheNef1KrK8QnizeP/N0TJGjgY5n8ks.3.', 'user'),
-(4, 'admin_utama', 'admin2@gmail.com', NULL, '$2y$10$vauZmBosJvPFVtAgVxSyXON10lQ0V/MxqPD/MfbaFSUXC6VuOuODi', 'admin'),
-(5, 'Andi Wijaya', 'andi@gmail.com', '3312301003', '$2y$10$844riWtfKQ/yzlpzuiJFKuKsJTHqrMQfohhc07TmX0lcXqiTVobUe', 'user');
+INSERT INTO `users` (`id`, `name`, `username`, `email`, `nim`, `password`, `role`) VALUES
+(2, NULL, 'Budi Santoso', 'nelsonmeylina@gmail.com', '3312301001', '$2y$10$Tx2duiM4Pz/fHHJI5aOMheNef1KrK8QnizeP/N0TJGjgY5n8ks.3.', 'user'),
+(4, NULL, 'admin_utama', 'admin2@gmail.com', NULL, '$2y$10$vauZmBosJvPFVtAgVxSyXON10lQ0V/MxqPD/MfbaFSUXC6VuOuODi', 'admin'),
+(5, NULL, 'Andi Wijaya', 'andi@gmail.com', '3312301003', '$2y$10$844riWtfKQ/yzlpzuiJFKuKsJTHqrMQfohhc07TmX0lcXqiTVobUe', 'user');
 
 --
 -- Indexes for dumped tables
@@ -167,7 +176,7 @@ ALTER TABLE `buku`
 -- AUTO_INCREMENT untuk tabel `diskusi`
 --
 ALTER TABLE `diskusi`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=6;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=15;
 
 --
 -- AUTO_INCREMENT untuk tabel `users`
