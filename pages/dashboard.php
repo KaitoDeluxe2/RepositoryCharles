@@ -13,22 +13,19 @@ $search_query = isset($_GET['search']) ? trim($_GET['search']) : '';
 $is_searching = !empty($search_query);
 
 // --- LOGIKA PAGINASI DAN PENGAMBILAN DATA ---
-$buku_per_halaman = 12; // Jumlah buku per halaman
+$buku_per_halaman = 12;
 
-// Tentukan halaman saat ini
 $halaman_aktif = isset($_GET['page']) && is_numeric($_GET['page']) ? (int)$_GET['page'] : 1;
 if ($halaman_aktif < 1) {
     $halaman_aktif = 1;
 }
 
-// Persiapkan query dasar
 $sql_data = "SELECT id, judul, cover_path, penulis FROM buku";
 $sql_count = "SELECT COUNT(id) AS total FROM buku";
 
 $params = [];
 $types = "";
 
-// Jika sedang mencari, tambahkan kondisi WHERE
 if ($is_searching) {
     $search_term = "%" . $search_query . "%";
     $where_clause = " WHERE judul LIKE ? OR penulis LIKE ?";
@@ -39,7 +36,6 @@ if ($is_searching) {
     $types .= "ss";
 }
 
-// Hitung total buku (baik dengan atau tanpa filter pencarian)
 $stmt_count = $conn->prepare($sql_count);
 if ($is_searching) {
     $stmt_count->bind_param($types, ...$params);
@@ -48,22 +44,18 @@ $stmt_count->execute();
 $total_buku = $stmt_count->get_result()->fetch_assoc()['total'];
 $stmt_count->close();
 
-// Hitung total halaman
 $total_halaman = ceil($total_buku / $buku_per_halaman);
 if ($halaman_aktif > $total_halaman && $total_halaman > 0) {
     $halaman_aktif = $total_halaman;
 }
 
-// Hitung OFFSET
 $offset = ($halaman_aktif - 1) * $buku_per_halaman;
 
-// Tambahkan ORDER BY dan LIMIT/OFFSET ke query data
 $sql_data .= " ORDER BY id DESC LIMIT ? OFFSET ?";
 $params[] = &$buku_per_halaman;
 $params[] = &$offset;
 $types .= "ii";
 
-// Ambil data buku untuk halaman saat ini
 $stmt_data = $conn->prepare($sql_data);
 if (!empty($types)) {
     $stmt_data->bind_param($types, ...$params);
@@ -80,7 +72,6 @@ $books_result = $stmt_data->get_result();
   <title>Perpustakaan Digital</title>
   <link href="../css/bootstrap.min.css" rel="stylesheet">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
-  <link rel="stylesheet" href="../css/style-dark.css">
   <style>
     body { background-color: #f8f9fa; }
     .navbar-brand { font-weight: bold; }
@@ -102,7 +93,6 @@ $books_result = $stmt_data->get_result();
     .book-item .card {
         transition: transform .2s, box-shadow .2s;
         border: 1px solid #eee;
-        background-color: transparent;
     }
     .book-item .card:hover {
         transform: translateY(-8px);
@@ -135,19 +125,7 @@ $books_result = $stmt_data->get_result();
       </button>
       
       <div class="collapse navbar-collapse" id="navbarNavDropdown">
-        <ul class="navbar-nav ms-auto align-items-center">
-        
-          <li class="nav-item me-2">
-            <div class="theme-switch-wrapper">
-              <i class="bi bi-sun-fill text-white me-2"></i>
-              <label class="theme-switch" for="checkbox">
-                <input type="checkbox" id="checkbox" />
-                <div class="slider round"></div>
-              </label>
-              <i class="bi bi-moon-fill text-white ms-1"></i>
-            </div>
-          </li>
-
+        <ul class="navbar-nav ms-auto">
           <li class="nav-item dropdown">
             <a class="nav-link dropdown-toggle" href="#" id="navbarDropdownMenuLink" role="button" data-bs-toggle="dropdown"><i class="bi bi-person-circle"></i> <?= $namaPengguna ?></a>
             <ul class="dropdown-menu dropdown-menu-end">
@@ -249,29 +227,6 @@ $books_result = $stmt_data->get_result();
 
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
 
-  <script>
-    document.addEventListener('DOMContentLoaded', function () {
-        const themeToggle = document.getElementById('checkbox');
-        const currentTheme = localStorage.getItem('theme');
-
-        if (currentTheme) {
-            document.body.classList.add(currentTheme);
-            if (currentTheme === 'dark-mode') {
-                themeToggle.checked = true;
-            }
-        }
-
-        themeToggle.addEventListener('change', function () {
-            if (this.checked) {
-                document.body.classList.add('dark-mode');
-                localStorage.setItem('theme', 'dark-mode');
-            } else {
-                document.body.classList.remove('dark-mode');
-                localStorage.setItem('theme', 'light-mode');
-            }
-        });
-    });
-  </script>
 </body>
 </html>
 <?php

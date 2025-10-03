@@ -2,6 +2,7 @@
 session_start();
 include '../includes/db.php';
 
+// Keamanan dasar dan pengambilan data
 if (!isset($_GET['id']) || !isset($_SESSION['user_id'])) {
     header("Location: dashboard.php");
     exit;
@@ -9,7 +10,6 @@ if (!isset($_GET['id']) || !isset($_SESSION['user_id'])) {
 
 $book_id = $_GET['id'];
 $user_id = $_SESSION['user_id'];
-$username = $_SESSION['username'];
 
 // Ambil data buku
 $stmt_buku = $conn->prepare("SELECT judul, penulis, cover_path FROM buku WHERE id = ?");
@@ -22,12 +22,30 @@ if ($result_buku->num_rows === 0) {
 $book = $result_buku->fetch_assoc();
 $stmt_buku->close();
 
-// Ambil semua diskusi untuk buku ini DAN data avatar pengguna
-$query = "SELECT d.id, d.user_id, d.username, d.komentar, d.tanggal, d.parent_id, u.avatar_seed 
-          FROM diskusi d 
-          JOIN users u ON d.user_id = u.id 
-          WHERE d.buku_id = ? 
-          ORDER BY d.tanggal ASC";
+
+// Ambil ID komentar yang sudah di-like dan di-dislike oleh user saat ini
+$stmt_liked = $conn->prepare("SELECT comment_id FROM comment_likes WHERE user_id = ?");
+$stmt_liked->bind_param("i", $user_id);
+$stmt_liked->execute();
+$liked_comments_result = $stmt_liked->get_result();
+$liked_comments = array_column($liked_comments_result->fetch_all(MYSQLI_ASSOC), 'comment_id');
+$stmt_liked->close();
+
+$stmt_disliked = $conn->prepare("SELECT comment_id FROM comment_dislikes WHERE user_id = ?");
+$stmt_disliked->bind_param("i", $user_id);
+$stmt_disliked->execute();
+$disliked_comments_result = $stmt_disliked->get_result();
+$disliked_comments = array_column($disliked_comments_result->fetch_all(MYSQLI_ASSOC), 'comment_id');
+$stmt_disliked->close();
+
+
+// Query utama untuk komentar
+$query = "
+    SELECT d.id, d.user_id, d.username, d.komentar, d.tanggal, d.parent_id, d.likes, d.dislikes, u.avatar_seed 
+    FROM diskusi d 
+    LEFT JOIN users u ON d.user_id = u.id 
+    WHERE d.buku_id = ? 
+    ORDER BY d.parent_id ASC, (d.likes - d.dislikes) DESC, d.tanggal ASC"; 
 $stmt_diskusi = $conn->prepare($query);
 $stmt_diskusi->bind_param("i", $book_id);
 $stmt_diskusi->execute();
@@ -40,37 +58,31 @@ while ($row = $diskusi_result->fetch_assoc()) {
 $stmt_diskusi->close();
 $conn->close();
 
-// --- [FUNGSI DIUBAH TOTAL] ---
-// Fungsi rekursif untuk menampilkan komentar dan balasannya
-function tampilkan_komentar($parent_id, $komentar, $book_id, $level = 0) {
+function tampilkan_komentar($parent_id, $komentar, $book_id, $liked_comments, $disliked_comments, $is_reply = false) {
     if (isset($komentar[$parent_id])) {
+        
         foreach ($komentar[$parent_id] as $item) {
             $is_admin = isset($_SESSION['role']) && $_SESSION['role'] === 'admin';
-            
-            // Tentukan style inden. Jika level > 0 (ini adalah balasan), berikan margin.
-            // Jika tidak (komentar utama), tidak ada margin.
-            $indent_style = ($level > 0) 
-                ? 'margin-left: 50px; padding-left: 15px; border-left: 2px solid #e9ecef;' 
-                : '';
+            $is_liked = in_array($item['id'], $liked_comments);
+            $is_disliked = in_array($item['id'], $disliked_comments);
+            $like_btn_class = $is_liked ? 'btn-primary' : 'btn-outline-primary';
+            $dislike_btn_class = $is_disliked ? 'btn-danger' : 'btn-outline-danger';
+            $has_replies = isset($komentar[$item['id']]);
 
-            // Wrapper untuk setiap item komentar
-            echo '<div style="' . $indent_style . '">';
-            
-                echo '<div class="d-flex mb-3 comment-item pt-3">';
-                    // Avatar
+            echo '<div class="comment-wrapper ' . ($is_reply ? '' : 'comment-wrapper-top-level') . '">';
+                
+                // --- Konten Komentar Utama ---
+                echo '<div class="d-flex comment-item py-3">';
                     echo '<div class="flex-shrink-0 me-3">';
                     if (!empty($item['avatar_seed'])) {
-                        $avatar_url = "https://api.dicebear.com/8.x/croodles/svg?seed=" . urlencode($item['avatar_seed']);
-                        echo '<img src="' . $avatar_url . '" alt="Avatar" class="avatar" style="width: 48px; height: 48px;">';
+                        $avatar_url = "https://api.dicebear.com/8.x/croodles/svg?seed=" . urlencode($item['avatar_seed']) . "&backgroundColor=2c2c2e";
+                        echo '<img src="' . $avatar_url . '" alt="Avatar" class="avatar">';
                     } else {
-                        // Fallback jika tidak ada avatar_seed
-                        echo '<div class="avatar" style="background-color: hsl(' . (crc32($item['username']) % 360) . ', 60%, 50%); width: 48px; height: 48px;">
-                                ' . strtoupper(substr($item['username'], 0, 1)) . '
-                              </div>';
+                        echo '<div class="avatar" style="background-color: #6c757d;"><i class="bi bi-person-fill text-white"></i></div>';
                     }
                     echo '</div>';
         
-                    // Konten Komentar
+                    // Badan Komentar
                     echo '<div class="w-100">
                             <div class="d-flex justify-content-between align-items-center">
                                 <h6 class="fw-bold mb-0">' . htmlspecialchars($item['username']) . '</h6>';
@@ -82,18 +94,36 @@ function tampilkan_komentar($parent_id, $komentar, $book_id, $level = 0) {
                     }
                     echo    '</div>
                             <p class="comment-meta mb-2">' . date('d F Y, H:i', strtotime($item['tanggal'])) . ' WIB</p>
-                            <div class="comment-body">
-                               <p class="mb-0">' . nl2br(htmlspecialchars($item['komentar'])) . '</p>
-                            </div>
-                            <button class="btn btn-sm btn-link text-decoration-none ps-0 mt-1 reply-btn" data-comment-id="' . $item['id'] . '"><i class="bi bi-reply-fill"></i> Balas</button>
-                          </div>';
-                echo '</div>'; // End .comment-item
-            
-            echo '</div>'; // End wrapper inden
+                            <div class="comment-body"><p class="mb-0">' . nl2br(htmlspecialchars($item['komentar'])) . '</p></div>
+                            <div class="comment-actions mt-2">
+                                <button class="btn btn-sm btn-link text-decoration-none ps-0 fw-bold reply-btn" data-comment-id="' . $item['id'] . '"><i class="bi bi-reply-fill"></i> Balas</button>
+                                <button class="btn btn-sm ' . $like_btn_class . ' like-btn" data-comment-id="' . $item['id'] . '">
+                                    <i class="bi bi-hand-thumbs-up-fill"></i> 
+                                    <span class="like-count">' . $item['likes'] . '</span>
+                                </button>
+                                <button class="btn btn-sm ' . $dislike_btn_class . ' dislike-btn" data-comment-id="' . $item['id'] . '">
+                                    <i class="bi bi-hand-thumbs-down-fill"></i>
+                                    <span class="dislike-count">' . $item['dislikes'] . '</span>
+                                </button>
+                            </div>';
 
-            // Panggil rekursif untuk anak dari komentar ini.
-            // Level + 1 akan memastikan anak-anaknya dianggap sebagai balasan.
-            tampilkan_komentar($item['id'], $komentar, $book_id, $level + 1);
+                if ($has_replies) {
+                    $total_replies = count($komentar[$item['id']]);
+                    echo '<div class="mt-2">
+                            <button class="btn btn-link text-decoration-none fw-bold p-0 toggle-replies-btn" data-bs-toggle="collapse" data-bs-target="#replies-of-' . $item['id'] . '">
+                                <i class="bi bi-caret-down-fill"></i> ' . $total_replies . ' balasan
+                            </button>
+                          </div>';
+                }
+
+                echo '</div></div>'; // end .w-100 and .comment-item
+            
+                if ($has_replies) {
+                    echo '<div class="collapse replies-container" id="replies-of-' . $item['id'] . '">';
+                    tampilkan_komentar($item['id'], $komentar, $book_id, $liked_comments, $disliked_comments, true);
+                    echo '</div>';
+                }
+            echo '</div>'; // End comment-wrapper
         }
     }
 }
@@ -107,18 +137,33 @@ function tampilkan_komentar($parent_id, $komentar, $book_id, $level = 0) {
     <link href="../css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
     <style>
-        body { background-color: #f0f2f5; }
-        .discussion-header .book-cover { width: 80px; height: 120px; object-fit: cover; border-radius: 0.5rem; box-shadow: 0 4px 12px rgba(0,0,0,0.15); }
-        .avatar { display: inline-flex; align-items: center; justify-content: center; background-color: #0d6efd; color: white; border-radius: 50%; font-weight: bold; font-size: 1.2rem; flex-shrink: 0; }
+        body { background-color: #1c1c1e; color: #e4e6eb; }
+        .bg-white, .card { background-color: #2c2c2e !important; border: 1px solid #3a3b3c !important; color: #e4e6eb; }
+        h1, h4, h5, h6, .text-muted, label { color: #e4e6eb !important; }
+        .text-muted, .comment-meta { color: #b0b3b8 !important; }
+        .comment-body { background-color: #3a3b3c !important; }
+        .btn-outline-secondary { color: #e4e6eb; border-color: #6c757d; }
+        .btn-outline-secondary:hover { background-color: #6c757d; color: white; }
+        .reply-btn, .btn-link { color: #b0b3b8 !important; }
+        .form-control { background-color: #3a3b3c; color: #e4e6eb; border-color: #4a4a4d; }
+        .form-control::placeholder { color: #b0b3b8; opacity: 0.7; }
+        .btn-primary { background-color: #0d6efd; border-color: #0d6efd; color: white; }
+        .btn-secondary { background-color: #6c757d; border-color: #6c757d; color: white; }
+        .discussion-header .book-cover { width: 80px; height: 120px; object-fit: cover; border-radius: 0.5rem; }
+        .avatar { width: 48px; height: 48px; display: inline-flex; align-items: center; justify-content: center; background-color: #0d6efd; color: white; border-radius: 50%; font-weight: bold; font-size: 1.5rem; flex-shrink: 0; }
         .comment-form-box .avatar { width: 40px; height: 40px; font-size: 1rem;}
-        .comment-item .avatar { width: 48px; height: 48px; }
-        .comment-body { background-color: #e9ecef; border-radius: 1rem; padding: 0.75rem 1rem; word-wrap: break-word; }
-        .comment-meta { font-size: 0.8rem; color: #6c757d; }
-        /* Hapus style .comment-thread */
-        .reply-btn { font-weight: bold; }
         #cancel-reply-btn { display: none; }
         .admin-delete-btn { opacity: 0; transition: opacity 0.2s ease-in-out; }
         .comment-item:hover .admin-delete-btn { opacity: 1; }
+        .comment-actions { display: flex; align-items: center; gap: 0.5rem; }
+        .like-btn, .dislike-btn { border-radius: 20px; padding: 0.2rem 0.8rem; font-size: 0.8rem; }
+        .like-count, .dislike-count { margin-left: 0.3rem; font-weight: bold; }
+        .comment-wrapper-top-level { border-top: 1px solid #3e4042; }
+        .comment-wrapper-top-level:first-child { border-top: none; }
+        .replies-container { margin-left: 50px; padding-left: 15px; border-left: 2px solid #3a3b3c; }
+        .toggle-replies-btn { font-size: 0.9rem; padding: 0.2rem 0; color: #4dabf7 !important; }
+        .toggle-replies-btn .bi { transition: transform 0.3s ease; }
+        .toggle-replies-btn[aria-expanded="true"] .bi { transform: rotate(-180deg); }
     </style>
 </head>
 <body>
@@ -126,30 +171,11 @@ function tampilkan_komentar($parent_id, $komentar, $book_id, $level = 0) {
 <div class="container my-5">
     <div class="col-lg-9 mx-auto">
         
-        <?php
-        if (isset($_GET['success']) && $_GET['success'] == 'comment_deleted') {
-            $deleted_user = isset($_GET['deleted_user']) ? htmlspecialchars($_GET['deleted_user']) : 'Pengguna';
-            echo '<div class="alert alert-success alert-dismissible fade show" role="alert">
-                    <strong>Berhasil!</strong> Komentar dari <strong>' . $deleted_user . '</strong> telah berhasil dihapus.
-                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-                  </div>';
-        }
-        ?>
-
         <div class="bg-white p-4 rounded-3 shadow-sm mb-4 discussion-header">
             <div class="row g-3 align-items-center">
-                <div class="col-auto">
-                    <img src="../<?= htmlspecialchars($book['cover_path']) ?>" class="book-cover" alt="Cover">
-                </div>
-                <div class="col">
-                    <h1 class="h4 fw-bold mb-1"><?= htmlspecialchars($book['judul']) ?></h1>
-                    <p class="fs-6 text-muted mb-0">Diskusi buku oleh: <?= htmlspecialchars($book['penulis']) ?></p>
-                </div>
-                <div class="col-auto">
-                    <a href="detail_buku.php?id=<?= $book_id; ?>" class="btn btn-outline-secondary">
-                        <i class="bi bi-arrow-left"></i> Kembali
-                    </a>
-                </div>
+                <div class="col-auto"><img src="../<?= htmlspecialchars($book['cover_path']) ?>" class="book-cover" alt="Cover"></div>
+                <div class="col"><h1 class="h4 fw-bold mb-1"><?= htmlspecialchars($book['judul']) ?></h1><p class="fs-6 text-muted mb-0">Diskusi buku</p></div>
+                <div class="col-auto"><a href="detail_buku.php?id=<?= $book_id ?>" class="btn btn-outline-secondary"><i class="bi bi-arrow-left"></i> Kembali</a></div>
             </div>
         </div>
         
@@ -159,25 +185,14 @@ function tampilkan_komentar($parent_id, $komentar, $book_id, $level = 0) {
                     <h5 class="card-title px-2" id="form-title">Tulis Komentar Anda</h5>
                     <div class="d-flex align-items-start p-2">
                         <div class="avatar me-3">
-                           <?php
-                           if (isset($_SESSION['avatar_seed']) && !empty($_SESSION['avatar_seed'])):
-                               $avatar_url = "https://api.dicebear.com/8.x/croodles/svg?seed=" . urlencode($_SESSION['avatar_seed']);
-                           ?>
-                               <img src="<?= $avatar_url ?>" alt="Avatar" style="width: 40px; height: 40px; border-radius: 50%;">
-                           <?php else: ?>
-                               <?= strtoupper(substr($_SESSION['username'], 0, 1)) ?>
-                           <?php endif; ?>
+                           <?php if (isset($_SESSION['avatar_seed']) && !empty($_SESSION['avatar_seed'])): ?>
+                               <img src="<?= "https://api.dicebear.com/8.x/croodles/svg?seed=" . urlencode($_SESSION['avatar_seed']) . "&backgroundColor=282a36" ?>" alt="Avatar" style="width: 40px; height: 40px; border-radius: 50%;">
+                           <?php else: echo strtoupper(substr($_SESSION['username'], 0, 1)); endif; ?>
                         </div>
                         <form id="main-comment-form" action="tambah_komentar.php" method="POST" class="w-100">
-                            <input type="hidden" name="buku_id" value="<?= $book_id ?>">
-                            <input type="hidden" name="parent_id" id="parent_id_input" value="0">
-                            <div class="mb-2">
-                                <textarea name="komentar" class="form-control" rows="3" placeholder="Apa pendapatmu tentang buku ini?" required></textarea>
-                            </div>
-                            <div class="d-flex justify-content-end">
-                                <button type="button" class="btn btn-sm btn-secondary me-2" id="cancel-reply-btn">Batal</button>
-                                <button type="submit" class="btn btn-primary"><i class="bi bi-send-fill"></i> Kirim</button>
-                            </div>
+                            <input type="hidden" name="buku_id" value="<?= $book_id ?>"><input type="hidden" name="parent_id" id="parent_id_input" value="0">
+                            <div class="mb-2"><textarea name="komentar" class="form-control" rows="3" placeholder="Apa pendapatmu tentang buku ini?" required></textarea></div>
+                            <div class="d-flex justify-content-end"><button type="button" class="btn btn-sm btn-secondary me-2" id="cancel-reply-btn">Batal</button><button type="submit" class="btn btn-primary"><i class="bi bi-send-fill"></i> Kirim</button></div>
                         </form>
                     </div>
                 </div>
@@ -187,7 +202,7 @@ function tampilkan_komentar($parent_id, $komentar, $book_id, $level = 0) {
         <div class="bg-white p-4 rounded-3 shadow-sm">
             <h4 class="mb-4">Diskusi Terbaru</h4>
             <?php if (!empty($komentar)): ?>
-                <?php tampilkan_komentar(0, $komentar, $book_id); ?>
+                <?php tampilkan_komentar(0, $komentar, $book_id, $liked_comments, $disliked_comments); ?>
             <?php else: ?>
                 <p class="text-center text-muted">Belum ada diskusi untuk buku ini. Jadilah yang pertama!</p>
             <?php endif; ?>
@@ -195,27 +210,28 @@ function tampilkan_komentar($parent_id, $komentar, $book_id, $level = 0) {
     </div>
 </div>
 
-<script src="../js/bootstrap.bundle.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+
 <script>
 document.addEventListener('DOMContentLoaded', function() {
+    // JavaScript untuk Reply Form
     const formContainer = document.getElementById('comment-form-container');
-    const mainForm = document.getElementById('main-comment-form');
+    const originalFormParent = document.querySelector('.col-lg-9.mx-auto');
     const parentIdInput = document.getElementById('parent_id_input');
     const formTitle = document.getElementById('form-title');
-    const originalFormParent = formContainer.parentNode;
     const cancelReplyBtn = document.getElementById('cancel-reply-btn');
+    const discussionContainer = document.querySelectorAll('.bg-white.p-4.rounded-3.shadow-sm')[1];
 
     document.querySelectorAll('.reply-btn').forEach(button => {
         button.addEventListener('click', function() {
-            const commentId = this.getAttribute('data-comment-id');
-            const commentItem = this.closest('.comment-item').parentNode; // Target the wrapper div
+            const commentId = this.dataset.commentId;
+            const commentWrapper = this.closest('.comment-wrapper');
             
             parentIdInput.value = commentId;
             formTitle.textContent = 'Balas Komentar...';
             cancelReplyBtn.style.display = 'inline-block';
             
-            // Pindahkan form komentar setelah wrapper komentar yang akan dibalas
-            commentItem.parentNode.insertBefore(formContainer, commentItem.nextSibling);
+            commentWrapper.appendChild(formContainer);
         });
     });
 
@@ -223,9 +239,37 @@ document.addEventListener('DOMContentLoaded', function() {
         parentIdInput.value = '0';
         formTitle.textContent = 'Tulis Komentar Anda';
         this.style.display = 'none';
-        
-        // Kembalikan form komentar ke posisi semula
-        originalFormParent.insertBefore(formContainer, originalFormParent.children[1]);
+        originalFormParent.insertBefore(formContainer, discussionContainer);
+    });
+
+    // JavaScript untuk Like Button
+    document.querySelectorAll('.like-btn').forEach(button => {
+        button.addEventListener('click', function() {
+            const commentId = this.dataset.commentId;
+            const likeCountSpan = this.querySelector('.like-count');
+
+            fetch('like_handler.php', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                body: 'comment_id=' + commentId
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    likeCountSpan.textContent = data.new_like_count;
+                    if (data.liked) {
+                        this.classList.remove('btn-outline-primary');
+                        this.classList.add('btn-primary');
+                    } else {
+                        this.classList.remove('btn-primary');
+                        this.classList.add('btn-outline-primary');
+                    }
+                } else {
+                    alert(data.message || 'Gagal memberikan like.');
+                }
+            })
+            .catch(error => console.error('Error:', error));
+        });
     });
 });
 </script>
