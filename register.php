@@ -39,10 +39,14 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
 
     // 4. Proses Simpan Data
     $hashed_password = password_hash($password, PASSWORD_BCRYPT);
+    
+    // [KODE BARU] Membuat seed unik untuk avatar
+    // Menggunakan kombinasi username dan waktu untuk membuat string acak
+    $avatar_seed = hash('sha256', $username . time());
 
-    // Semua yang mendaftar di sini PASTI 'user' dan punya NIM
-    $stmt = $conn->prepare("INSERT INTO users (username, email, nim, password, role) VALUES (?, ?, ?, ?, 'user')");
-    $stmt->bind_param("ssss", $username, $email, $nim, $hashed_password);
+    // [DIUBAH] Tambahkan kolom avatar_seed ke query INSERT
+    $stmt = $conn->prepare("INSERT INTO users (username, email, nim, password, role, avatar_seed) VALUES (?, ?, ?, ?, 'user', ?)");
+    $stmt->bind_param("sssss", $username, $email, $nim, $hashed_password, $avatar_seed);
 
     if ($stmt->execute()) {
         header("Location: login.php?status=sukses_registrasi");

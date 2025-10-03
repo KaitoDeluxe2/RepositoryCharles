@@ -9,27 +9,67 @@ if (!isset($_SESSION['user_id'])) {
 
 $namaPengguna = htmlspecialchars($_SESSION['username']);
 
-// --- LOGIKA PENCARIAN ---
-$search_query = '';
-$sql = "SELECT id, judul, cover_path, penulis FROM buku";
+$search_query = isset($_GET['search']) ? trim($_GET['search']) : '';
+$is_searching = !empty($search_query);
 
-if (isset($_GET['search']) && !empty(trim($_GET['search']))) {
-    $search_query = trim($_GET['search']);
-    // Menambahkan klausa WHERE untuk mencari berdasarkan judul atau penulis
-    $sql .= " WHERE judul LIKE ? OR penulis LIKE ?";
-    $sql .= " ORDER BY id DESC";
-    
-    $stmt = $conn->prepare($sql);
-    $search_term = "%" . $search_query . "%";
-    $stmt->bind_param("ss", $search_term, $search_term);
-} else {
-    // Query default jika tidak ada pencarian
-    $sql .= " ORDER BY id DESC LIMIT 12";
-    $stmt = $conn->prepare($sql);
+// --- LOGIKA PAGINASI DAN PENGAMBILAN DATA ---
+$buku_per_halaman = 12; // Jumlah buku per halaman
+
+// Tentukan halaman saat ini
+$halaman_aktif = isset($_GET['page']) && is_numeric($_GET['page']) ? (int)$_GET['page'] : 1;
+if ($halaman_aktif < 1) {
+    $halaman_aktif = 1;
 }
 
-$stmt->execute();
-$books_result = $stmt->get_result();
+// Persiapkan query dasar
+$sql_data = "SELECT id, judul, cover_path, penulis FROM buku";
+$sql_count = "SELECT COUNT(id) AS total FROM buku";
+
+$params = [];
+$types = "";
+
+// Jika sedang mencari, tambahkan kondisi WHERE
+if ($is_searching) {
+    $search_term = "%" . $search_query . "%";
+    $where_clause = " WHERE judul LIKE ? OR penulis LIKE ?";
+    $sql_data .= $where_clause;
+    $sql_count .= $where_clause;
+    $params[] = &$search_term;
+    $params[] = &$search_term;
+    $types .= "ss";
+}
+
+// Hitung total buku (baik dengan atau tanpa filter pencarian)
+$stmt_count = $conn->prepare($sql_count);
+if ($is_searching) {
+    $stmt_count->bind_param($types, ...$params);
+}
+$stmt_count->execute();
+$total_buku = $stmt_count->get_result()->fetch_assoc()['total'];
+$stmt_count->close();
+
+// Hitung total halaman
+$total_halaman = ceil($total_buku / $buku_per_halaman);
+if ($halaman_aktif > $total_halaman && $total_halaman > 0) {
+    $halaman_aktif = $total_halaman;
+}
+
+// Hitung OFFSET
+$offset = ($halaman_aktif - 1) * $buku_per_halaman;
+
+// Tambahkan ORDER BY dan LIMIT/OFFSET ke query data
+$sql_data .= " ORDER BY id DESC LIMIT ? OFFSET ?";
+$params[] = &$buku_per_halaman;
+$params[] = &$offset;
+$types .= "ii";
+
+// Ambil data buku untuk halaman saat ini
+$stmt_data = $conn->prepare($sql_data);
+if (!empty($types)) {
+    $stmt_data->bind_param($types, ...$params);
+}
+$stmt_data->execute();
+$books_result = $stmt_data->get_result();
 
 ?>
 <!DOCTYPE html>
@@ -40,8 +80,8 @@ $books_result = $stmt->get_result();
   <title>Perpustakaan Digital</title>
   <link href="../css/bootstrap.min.css" rel="stylesheet">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+  <link rel="stylesheet" href="../css/style-dark.css">
   <style>
-    /* ... (CSS dari sebelumnya tetap sama, tidak perlu diubah) ... */
     body { background-color: #f8f9fa; }
     .navbar-brand { font-weight: bold; }
     .hero-section {
@@ -80,7 +120,7 @@ $books_result = $stmt->get_result();
         display: -webkit-box;
         -webkit-line-clamp: 2;
         -webkit-box-orient: vertical;
-        min-height: 42px;
+        min-height: 48px;
     }
   </style>
 </head>
@@ -89,8 +129,25 @@ $books_result = $stmt->get_result();
   <nav class="navbar navbar-expand-lg navbar-dark bg-dark bg-opacity-75 fixed-top">
     <div class="container">
       <a class="navbar-brand" href="dashboard.php"><i class="bi bi-book-half"></i> Perpus Digital</a>
+      
+      <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNavDropdown" aria-controls="navbarNavDropdown" aria-expanded="false" aria-label="Toggle navigation">
+        <span class="navbar-toggler-icon"></span>
+      </button>
+      
       <div class="collapse navbar-collapse" id="navbarNavDropdown">
-        <ul class="navbar-nav ms-auto">
+        <ul class="navbar-nav ms-auto align-items-center">
+        
+          <li class="nav-item me-2">
+            <div class="theme-switch-wrapper">
+              <i class="bi bi-sun-fill text-white me-2"></i>
+              <label class="theme-switch" for="checkbox">
+                <input type="checkbox" id="checkbox" />
+                <div class="slider round"></div>
+              </label>
+              <i class="bi bi-moon-fill text-white ms-1"></i>
+            </div>
+          </li>
+
           <li class="nav-item dropdown">
             <a class="nav-link dropdown-toggle" href="#" id="navbarDropdownMenuLink" role="button" data-bs-toggle="dropdown"><i class="bi bi-person-circle"></i> <?= $namaPengguna ?></a>
             <ul class="dropdown-menu dropdown-menu-end">
@@ -112,7 +169,6 @@ $books_result = $stmt->get_result();
       <h1 class="display-5 fw-bold">Perpustakaan Digital Politeknik Negeri Batam</h1>
       <p class="lead">Temukan sumber referensi untuk menunjang perkuliahan Anda.</p>
       <div class="col-lg-8 mx-auto mt-4">
-        <!-- [PERUBAHAN] Form pencarian sekarang fungsional -->
         <form action="dashboard.php" method="GET" class="search-form">
           <div class="input-group">
             <input type="text" name="search" class="form-control form-control-lg" placeholder="Masukkan judul buku atau penulis..." value="<?= htmlspecialchars($search_query) ?>">
@@ -125,11 +181,10 @@ $books_result = $stmt->get_result();
 
   <main class="container my-5">
     <section class="book-collection">
-      <!-- [PERUBAHAN] Judul dinamis berdasarkan pencarian -->
-      <?php if (!empty($search_query)): ?>
+      <?php if ($is_searching): ?>
         <h2 class="section-title">Hasil pencarian untuk: "<?= htmlspecialchars($search_query) ?>"</h2>
       <?php else: ?>
-        <h2 class="section-title">Koleksi Terbaru</h2>
+        <h2 class="section-title">Semua Koleksi</h2>
       <?php endif; ?>
       
       <div class="row row-cols-2 row-cols-md-4 row-cols-lg-6 g-4">
@@ -152,9 +207,8 @@ $books_result = $stmt->get_result();
           </div>
           <?php endwhile; ?>
         <?php else: ?>
-          <!-- [PERUBAHAN] Pesan dinamis jika tidak ada hasil -->
           <div class="col-12 text-center py-5">
-            <?php if (!empty($search_query)): ?>
+            <?php if ($is_searching): ?>
                 <p class="text-muted fs-5">Tidak ada buku yang cocok dengan pencarian Anda.</p>
                 <a href="dashboard.php" class="btn btn-primary mt-2">Lihat Semua Koleksi</a>
             <?php else: ?>
@@ -164,6 +218,29 @@ $books_result = $stmt->get_result();
         <?php endif; ?>
         </div>
     </section>
+
+    <?php if ($total_halaman > 1): ?>
+    <nav aria-label="Navigasi Halaman" class="mt-5 d-flex justify-content-center">
+      <ul class="pagination shadow-sm">
+        
+        <li class="page-item <?= ($halaman_aktif <= 1) ? 'disabled' : '' ?>">
+          <a class="page-link" href="?page=<?= $halaman_aktif - 1 ?><?= $is_searching ? '&search=' . urlencode($search_query) : '' ?>">Sebelumnya</a>
+        </li>
+        
+        <?php for ($i = 1; $i <= $total_halaman; $i++): ?>
+        <li class="page-item <?= ($i == $halaman_aktif) ? 'active' : '' ?>">
+          <a class="page-link" href="?page=<?= $i ?><?= $is_searching ? '&search=' . urlencode($search_query) : '' ?>"><?= $i ?></a>
+        </li>
+        <?php endfor; ?>
+        
+        <li class="page-item <?= ($halaman_aktif >= $total_halaman) ? 'disabled' : '' ?>">
+          <a class="page-link" href="?page=<?= $halaman_aktif + 1 ?><?= $is_searching ? '&search=' . urlencode($search_query) : '' ?>">Selanjutnya</a>
+        </li>
+
+      </ul>
+    </nav>
+    <?php endif; ?>
+
   </main>
 
   <footer class="text-center py-4 mt-5 bg-white border-top">
@@ -171,9 +248,33 @@ $books_result = $stmt->get_result();
   </footer>
 
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+
+  <script>
+    document.addEventListener('DOMContentLoaded', function () {
+        const themeToggle = document.getElementById('checkbox');
+        const currentTheme = localStorage.getItem('theme');
+
+        if (currentTheme) {
+            document.body.classList.add(currentTheme);
+            if (currentTheme === 'dark-mode') {
+                themeToggle.checked = true;
+            }
+        }
+
+        themeToggle.addEventListener('change', function () {
+            if (this.checked) {
+                document.body.classList.add('dark-mode');
+                localStorage.setItem('theme', 'dark-mode');
+            } else {
+                document.body.classList.remove('dark-mode');
+                localStorage.setItem('theme', 'light-mode');
+            }
+        });
+    });
+  </script>
 </body>
 </html>
 <?php
-$stmt->close();
+$stmt_data->close();
 $conn->close();
 ?>

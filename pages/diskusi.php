@@ -22,51 +22,78 @@ if ($result_buku->num_rows === 0) {
 $book = $result_buku->fetch_assoc();
 $stmt_buku->close();
 
-// Ambil semua diskusi untuk buku ini
-$diskusi_result = $conn->query("SELECT id, user_id, username, komentar, tanggal, parent_id FROM diskusi WHERE buku_id = $book_id ORDER BY tanggal ASC");
+// Ambil semua diskusi untuk buku ini DAN data avatar pengguna
+$query = "SELECT d.id, d.user_id, d.username, d.komentar, d.tanggal, d.parent_id, u.avatar_seed 
+          FROM diskusi d 
+          JOIN users u ON d.user_id = u.id 
+          WHERE d.buku_id = ? 
+          ORDER BY d.tanggal ASC";
+$stmt_diskusi = $conn->prepare($query);
+$stmt_diskusi->bind_param("i", $book_id);
+$stmt_diskusi->execute();
+$diskusi_result = $stmt_diskusi->get_result();
+
 $komentar = [];
 while ($row = $diskusi_result->fetch_assoc()) {
     $komentar[$row['parent_id']][] = $row;
 }
+$stmt_diskusi->close();
 $conn->close();
 
+// --- [FUNGSI DIUBAH TOTAL] ---
 // Fungsi rekursif untuk menampilkan komentar dan balasannya
 function tampilkan_komentar($parent_id, $komentar, $book_id, $level = 0) {
     if (isset($komentar[$parent_id])) {
-        $indent_margin = $level * 30; // Margin untuk balasan
-        $indent_class = $level > 0 ? "mt-3" : "";
-
         foreach ($komentar[$parent_id] as $item) {
             $is_admin = isset($_SESSION['role']) && $_SESSION['role'] === 'admin';
-            echo '<div class="comment-thread" style="margin-left: ' . $indent_margin . 'px;">';
-            echo '<div class="d-flex mb-3 comment-item ' . $indent_class . '">';
-            // Avatar
-            echo '<div class="flex-shrink-0 me-3">
-                    <div class="avatar" style="background-color: hsl(' . (crc32($item['username']) % 360) . ', 60%, 50%);">
-                        ' . strtoupper(substr($item['username'], 0, 1)) . '
-                    </div>
-                  </div>';
-            // Konten Komentar
-            echo '<div class="w-100">
-                    <div class="d-flex justify-content-between align-items-center">
-                        <h6 class="fw-bold mb-0">' . htmlspecialchars($item['username']) . '</h6>';
-            if ($is_admin) {
-                echo '<a href="delete_comment.php?id=' . $item['id'] . '&book_id=' . $book_id . '" 
-                           class="btn btn-sm btn-outline-danger admin-delete-btn"
-                           onclick="return confirm(\'Hapus komentar ini?\')"
-                           title="Hapus Komentar"><i class="bi bi-trash"></i></a>';
-            }
-            echo    '</div>
-                    <p class="comment-meta mb-2">' . date('d F Y, H:i', strtotime($item['tanggal'])) . ' WIB</p>
-                    <div class="comment-body">
-                       <p class="mb-0">' . nl2br(htmlspecialchars($item['komentar'])) . '</p>
-                    </div>
-                    <button class="btn btn-sm btn-link text-decoration-none ps-0 mt-1 reply-btn" data-comment-id="' . $item['id'] . '"><i class="bi bi-reply-fill"></i> Balas</button>
-                  </div>';
-            echo '</div>';
-            // Panggil fungsi ini lagi untuk menampilkan balasan dari komentar saat ini
+            
+            // Tentukan style inden. Jika level > 0 (ini adalah balasan), berikan margin.
+            // Jika tidak (komentar utama), tidak ada margin.
+            $indent_style = ($level > 0) 
+                ? 'margin-left: 50px; padding-left: 15px; border-left: 2px solid #e9ecef;' 
+                : '';
+
+            // Wrapper untuk setiap item komentar
+            echo '<div style="' . $indent_style . '">';
+            
+                echo '<div class="d-flex mb-3 comment-item pt-3">';
+                    // Avatar
+                    echo '<div class="flex-shrink-0 me-3">';
+                    if (!empty($item['avatar_seed'])) {
+                        $avatar_url = "https://api.dicebear.com/8.x/croodles/svg?seed=" . urlencode($item['avatar_seed']);
+                        echo '<img src="' . $avatar_url . '" alt="Avatar" class="avatar" style="width: 48px; height: 48px;">';
+                    } else {
+                        // Fallback jika tidak ada avatar_seed
+                        echo '<div class="avatar" style="background-color: hsl(' . (crc32($item['username']) % 360) . ', 60%, 50%); width: 48px; height: 48px;">
+                                ' . strtoupper(substr($item['username'], 0, 1)) . '
+                              </div>';
+                    }
+                    echo '</div>';
+        
+                    // Konten Komentar
+                    echo '<div class="w-100">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <h6 class="fw-bold mb-0">' . htmlspecialchars($item['username']) . '</h6>';
+                    if ($is_admin) {
+                        echo '<a href="delete_comment.php?id=' . $item['id'] . '&book_id=' . $book_id . '" 
+                                   class="btn btn-sm btn-outline-danger admin-delete-btn"
+                                   onclick="return confirm(\'Hapus komentar ini?\')"
+                                   title="Hapus Komentar"><i class="bi bi-trash"></i></a>';
+                    }
+                    echo    '</div>
+                            <p class="comment-meta mb-2">' . date('d F Y, H:i', strtotime($item['tanggal'])) . ' WIB</p>
+                            <div class="comment-body">
+                               <p class="mb-0">' . nl2br(htmlspecialchars($item['komentar'])) . '</p>
+                            </div>
+                            <button class="btn btn-sm btn-link text-decoration-none ps-0 mt-1 reply-btn" data-comment-id="' . $item['id'] . '"><i class="bi bi-reply-fill"></i> Balas</button>
+                          </div>';
+                echo '</div>'; // End .comment-item
+            
+            echo '</div>'; // End wrapper inden
+
+            // Panggil rekursif untuk anak dari komentar ini.
+            // Level + 1 akan memastikan anak-anaknya dianggap sebagai balasan.
             tampilkan_komentar($item['id'], $komentar, $book_id, $level + 1);
-            echo '</div>';
         }
     }
 }
@@ -87,7 +114,7 @@ function tampilkan_komentar($parent_id, $komentar, $book_id, $level = 0) {
         .comment-item .avatar { width: 48px; height: 48px; }
         .comment-body { background-color: #e9ecef; border-radius: 1rem; padding: 0.75rem 1rem; word-wrap: break-word; }
         .comment-meta { font-size: 0.8rem; color: #6c757d; }
-        .comment-thread { border-left: 2px solid #e9ecef; padding-left: 15px; }
+        /* Hapus style .comment-thread */
         .reply-btn { font-weight: bold; }
         #cancel-reply-btn { display: none; }
         .admin-delete-btn { opacity: 0; transition: opacity 0.2s ease-in-out; }
@@ -99,6 +126,16 @@ function tampilkan_komentar($parent_id, $komentar, $book_id, $level = 0) {
 <div class="container my-5">
     <div class="col-lg-9 mx-auto">
         
+        <?php
+        if (isset($_GET['success']) && $_GET['success'] == 'comment_deleted') {
+            $deleted_user = isset($_GET['deleted_user']) ? htmlspecialchars($_GET['deleted_user']) : 'Pengguna';
+            echo '<div class="alert alert-success alert-dismissible fade show" role="alert">
+                    <strong>Berhasil!</strong> Komentar dari <strong>' . $deleted_user . '</strong> telah berhasil dihapus.
+                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                  </div>';
+        }
+        ?>
+
         <div class="bg-white p-4 rounded-3 shadow-sm mb-4 discussion-header">
             <div class="row g-3 align-items-center">
                 <div class="col-auto">
@@ -122,7 +159,14 @@ function tampilkan_komentar($parent_id, $komentar, $book_id, $level = 0) {
                     <h5 class="card-title px-2" id="form-title">Tulis Komentar Anda</h5>
                     <div class="d-flex align-items-start p-2">
                         <div class="avatar me-3">
-                            <?= strtoupper(substr($_SESSION['username'], 0, 1)) ?>
+                           <?php
+                           if (isset($_SESSION['avatar_seed']) && !empty($_SESSION['avatar_seed'])):
+                               $avatar_url = "https://api.dicebear.com/8.x/croodles/svg?seed=" . urlencode($_SESSION['avatar_seed']);
+                           ?>
+                               <img src="<?= $avatar_url ?>" alt="Avatar" style="width: 40px; height: 40px; border-radius: 50%;">
+                           <?php else: ?>
+                               <?= strtoupper(substr($_SESSION['username'], 0, 1)) ?>
+                           <?php endif; ?>
                         </div>
                         <form id="main-comment-form" action="tambah_komentar.php" method="POST" class="w-100">
                             <input type="hidden" name="buku_id" value="<?= $book_id ?>">
@@ -164,13 +208,14 @@ document.addEventListener('DOMContentLoaded', function() {
     document.querySelectorAll('.reply-btn').forEach(button => {
         button.addEventListener('click', function() {
             const commentId = this.getAttribute('data-comment-id');
-            const commentItem = this.closest('.comment-item');
+            const commentItem = this.closest('.comment-item').parentNode; // Target the wrapper div
             
             parentIdInput.value = commentId;
             formTitle.textContent = 'Balas Komentar...';
             cancelReplyBtn.style.display = 'inline-block';
             
-            commentItem.parentNode.appendChild(formContainer);
+            // Pindahkan form komentar setelah wrapper komentar yang akan dibalas
+            commentItem.parentNode.insertBefore(formContainer, commentItem.nextSibling);
         });
     });
 
@@ -178,6 +223,8 @@ document.addEventListener('DOMContentLoaded', function() {
         parentIdInput.value = '0';
         formTitle.textContent = 'Tulis Komentar Anda';
         this.style.display = 'none';
+        
+        // Kembalikan form komentar ke posisi semula
         originalFormParent.insertBefore(formContainer, originalFormParent.children[1]);
     });
 });

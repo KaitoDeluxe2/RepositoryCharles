@@ -50,10 +50,12 @@ $conn->close();
         }
         .book-cover-container {
             padding: 2.5rem;
-            background: linear-gradient(135deg, #f8f9fa, #e9ecef);
+            /* [DIUBAH] Latar belakang akan diisi oleh JavaScript */
+            background: #e9ecef; /* Warna fallback jika JS gagal */
             display: flex;
             align-items: center;
             justify-content: center;
+            transition: background 0.5s ease-in-out; /* Animasi transisi warna */
         }
         .book-cover-img {
             max-width: 100%;
@@ -62,6 +64,8 @@ $conn->close();
             border-radius: 0.5rem;
             box-shadow: 0 10px 25px rgba(0, 0, 0, 0.15);
             transition: transform 0.3s ease;
+            /* [BARU] Atribut ini penting agar JavaScript bisa mengakses data gambar */
+            crossorigin="anonymous"
         }
         .book-cover-img:hover {
             transform: scale(1.05);
@@ -165,22 +169,58 @@ $conn->close();
                 </div>
                 
                 <div class="action-buttons">
-    <div class="d-grid gap-2">
-        <a href="baca_buku.php?file=<?= urlencode(basename($book['file_path'])) ?>&title=<?= urlencode($book['judul']) ?>" class="btn btn-success btn-lg">
-            <i class="bi bi-eye-fill"></i> Baca Buku Sekarang
-        </a>
-        <a href="diskusi.php?id=<?= $book['id'] ?>" class="btn btn-primary btn-lg">
-            <i class="bi bi-chat-dots-fill"></i> Lihat & Gabung Diskusi
-        </a>
-        <a href="dashboard.php" class="btn btn-outline-secondary">
-            <i class="bi bi-arrow-left-circle"></i> Kembali ke Daftar Buku
-        </a>
-    </div>
-</div>
+                    <div class="d-grid gap-2">
+                        <a href="baca_buku.php?file=<?= urlencode(basename($book['file_path'])) ?>&title=<?= urlencode($book['judul']) ?>" class="btn btn-success btn-lg">
+                            <i class="bi bi-eye-fill"></i> Baca Buku Sekarang
+                        </a>
+                        <a href="diskusi.php?id=<?= $book['id'] ?>" class="btn btn-primary btn-lg">
+                            <i class="bi bi-chat-dots-fill"></i> Lihat & Gabung Diskusi
+                        </a>
+                        <a href="dashboard.php" class="btn btn-outline-secondary">
+                            <i class="bi bi-arrow-left-circle"></i> Kembali ke Daftar Buku
+                        </a>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
 </div>
 
+<script src="https://cdnjs.cloudflare.com/ajax/libs/color-thief/2.3.0/color-thief.umd.js"></script>
+<script>
+    // Pastikan DOM sudah siap
+    document.addEventListener('DOMContentLoaded', (event) => {
+        const colorThief = new ColorThief();
+        const img = document.querySelector('.book-cover-img');
+        const targetContainer = document.querySelector('.book-cover-container');
+
+        // Fungsi untuk mengambil warna dan mengubah background
+        const setBackgroundColor = (imageElement) => {
+            try {
+                // Ambil warna dominan dari gambar
+                const dominantColor = colorThief.getColor(imageElement);
+                
+                // Buat warna kedua yang sedikit lebih gelap untuk gradasi
+                const darkerColor = dominantColor.map(c => Math.max(0, c - 40));
+                
+                // Aplikasikan sebagai background gradient untuk efek yang lebih halus
+                targetContainer.style.background = `linear-gradient(135deg, rgb(${dominantColor.join(',')}), rgb(${darkerColor.join(',')}))`;
+            } catch (e) {
+                console.error("Error getting color from image:", e);
+                // Jika gagal, biarkan warna fallback dari CSS
+            }
+        };
+
+        // Cek apakah gambar sudah selesai dimuat oleh browser
+        if (img.complete) {
+            setBackgroundColor(img);
+        } else {
+            // Jika belum, tunggu sampai gambar selesai dimuat
+            img.addEventListener('load', function() {
+                setBackgroundColor(this);
+            });
+        }
+    });
+</script>
 </body>
 </html>

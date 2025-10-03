@@ -36,7 +36,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['action']) && $_POST['a
     $stmt->execute();
     $stmt->close();
 
-    header("Location: index.php");
+    header("Location: index.php?status=tambah_buku_sukses");
     exit;
 }
 
@@ -60,7 +60,7 @@ if ($_SERVER["REQUEST_METHOD"] == "GET" && isset($_GET['action']) && $_GET['acti
     $stmt->bind_param("i", $id);
     $stmt->execute();
     $stmt->close();
-    header("Location: index.php");
+    header("Location: index.php?status=hapus_buku_sukses");
     exit;
 }
 
@@ -73,7 +73,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['action']) && $_POST['a
         $stmt->bind_param("ss", $nim, $nama_lengkap);
         $stmt->execute();
         $stmt->close();
-        header("Location: index.php");
+        header("Location: index.php?status=tambah_mhs_sukses");
         exit;
     }
 }
@@ -85,7 +85,7 @@ if ($_SERVER["REQUEST_METHOD"] == "GET" && isset($_GET['action']) && $_GET['acti
     $stmt->bind_param("s", $nim);
     $stmt->execute();
     $stmt->close();
-    header("Location: index.php");
+    header("Location: index.php?status=hapus_mhs_sukses");
     exit;
 }
 
@@ -98,7 +98,7 @@ if ($_SERVER["REQUEST_METHOD"] == "GET" && isset($_GET['action']) && $_GET['acti
         $stmt->execute();
         $stmt->close();
     }
-    header("Location: index.php");
+    header("Location: index.php?status=hapus_user_sukses");
     exit;
 }
 
@@ -112,7 +112,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['action']) && $_POST['a
         $stmt->execute();
         $stmt->close();
     }
-    header("Location: index.php");
+    header("Location: index.php?status=update_role_sukses");
     exit;
 }
 
@@ -171,7 +171,6 @@ $users_result = $conn->query("SELECT id, username, email, nim, role FROM users O
             width: calc(100% - 260px);
         }
         .stat-card {
-            background-color: #fff;
             border-radius: 0.75rem;
             padding: 1.5rem;
             display: flex;
@@ -187,7 +186,30 @@ $users_result = $conn->query("SELECT id, username, email, nim, role FROM users O
             padding: 1rem;
             border-radius: 50%;
             margin-right: 1rem;
+            background-color: rgba(255, 255, 255, 0.2);
+            display: flex;
+            align-items: center;
+            justify-content: center;
         }
+        
+        .card-users {
+            background: linear-gradient(135deg, #0d6efd, #0a58ca);
+            color: white;
+        }
+        .card-mahasiswa {
+            background: linear-gradient(135deg, #0dcaf0, #0aa3c2);
+            color: white;
+        }
+        .card-buku {
+            background: linear-gradient(135deg, #198754, #146c43);
+            color: white;
+        }
+        .stat-card.card-users .text-muted,
+        .stat-card.card-mahasiswa .text-muted,
+        .stat-card.card-buku .text-muted {
+            color: rgba(255, 255, 255, 0.8) !important;
+        }
+
         .stat-card h2 { margin-bottom: 0; }
         .admin-card {
             background-color: #fff;
@@ -245,12 +267,52 @@ $users_result = $conn->query("SELECT id, username, email, nim, role FROM users O
 </div>
 
 <div class="main-content">
+
+    <?php
+    if (isset($_GET['status'])) {
+        $status = $_GET['status'];
+        $message = '';
+        $alert_type = 'success';
+
+        switch ($status) {
+            case 'edit_sukses':
+                $message = '<strong>Berhasil!</strong> Data buku telah berhasil diperbarui.';
+                break;
+            case 'tambah_buku_sukses':
+                $message = '<strong>Berhasil!</strong> Buku baru telah ditambahkan ke koleksi.';
+                break;
+            case 'hapus_buku_sukses':
+                $message = '<strong>Berhasil!</strong> Buku telah dihapus dari koleksi.';
+                break;
+            case 'tambah_mhs_sukses':
+                $message = '<strong>Berhasil!</strong> Mahasiswa resmi telah ditambahkan.';
+                break;
+            case 'hapus_mhs_sukses':
+                $message = '<strong>Berhasil!</strong> Data mahasiswa telah dihapus.';
+                break;
+            case 'update_role_sukses':
+                $message = '<strong>Berhasil!</strong> Peran pengguna telah diperbarui.';
+                break;
+            case 'hapus_user_sukses':
+                $message = '<strong>Berhasil!</strong> Akun pengguna telah dihapus.';
+                break;
+        }
+
+        if ($message) {
+            echo '<div class="alert alert-' . $alert_type . ' alert-dismissible fade show" role="alert">
+                    ' . $message . '
+                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                  </div>';
+        }
+    }
+    ?>
+
     <h1 class="h2 mb-4">Dashboard Admin</h1>
 
     <div class="row g-4 mb-4">
         <div class="col-md-4">
-            <div class="stat-card">
-                <div class="icon bg-primary bg-opacity-10 text-primary"><i class="bi bi-people-fill"></i></div>
+            <div class="stat-card card-users">
+                <div class="icon"><i class="bi bi-people-fill"></i></div>
                 <div>
                     <h2 class="fw-bold"><?= $total_users ?></h2>
                     <p class="mb-0 text-muted">Total Akun Terdaftar</p>
@@ -258,8 +320,8 @@ $users_result = $conn->query("SELECT id, username, email, nim, role FROM users O
             </div>
         </div>
         <div class="col-md-4">
-            <div class="stat-card">
-                <div class="icon bg-info bg-opacity-10 text-info"><i class="bi bi-person-badge"></i></div>
+            <div class="stat-card card-mahasiswa">
+                <div class="icon"><i class="bi bi-person-badge"></i></div>
                 <div>
                     <h2 class="fw-bold"><?= $total_mahasiswa_resmi ?></h2>
                     <p class="mb-0 text-muted">Total Mahasiswa Resmi</p>
@@ -267,8 +329,8 @@ $users_result = $conn->query("SELECT id, username, email, nim, role FROM users O
             </div>
         </div>
         <div class="col-md-4">
-            <div class="stat-card">
-                <div class="icon bg-success bg-opacity-10 text-success"><i class="bi bi-book-half"></i></div>
+            <div class="stat-card card-buku">
+                <div class="icon"><i class="bi bi-book-half"></i></div>
                 <div>
                     <h2 class="fw-bold"><?= $total_buku ?></h2>
                     <p class="mb-0 text-muted">Total Buku</p>
@@ -380,6 +442,7 @@ $users_result = $conn->query("SELECT id, username, email, nim, role FROM users O
     </div>
 </div>
 
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
 </body>
 </html>
 <?php

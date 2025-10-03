@@ -17,20 +17,26 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
     $name = $_POST['name'];
     $email = $_POST['email'];
 
-    $stmt = $conn->prepare("UPDATE users SET username = ?, email = ? WHERE id = ?");
-    $stmt->bind_param("ssi", $name, $email, $user_id);
+    // Validasi sederhana: pastikan input tidak kosong
+    if (!empty($name) && !empty($email)) {
+        $stmt = $conn->prepare("UPDATE users SET username = ?, email = ? WHERE id = ?");
+        $stmt->bind_param("ssi", $name, $email, $user_id);
 
-    if ($stmt->execute()) {
-        // Perbarui juga data di session agar langsung tampil di halaman
-        $_SESSION['username'] = $name;
-        $_SESSION['email'] = $email;
-        $message = "Perubahan berhasil disimpan!";
-        $message_type = "success";
+        if ($stmt->execute()) {
+            // Perbarui juga data di session agar langsung tampil di halaman
+            $_SESSION['username'] = $name;
+            $_SESSION['email'] = $email;
+            $message = "Perubahan berhasil disimpan!";
+            $message_type = "success";
+        } else {
+            $message = "Error: Gagal menyimpan perubahan. Mungkin email sudah digunakan.";
+            $message_type = "danger";
+        }
+        $stmt->close();
     } else {
-        $message = "Error: Gagal menyimpan perubahan.";
+        $message = "Error: Nama Pengguna dan Email tidak boleh kosong.";
         $message_type = "danger";
     }
-    $stmt->close();
 }
 
 // Ambil data terbaru dari session untuk ditampilkan
@@ -80,6 +86,7 @@ $conn->close();
         font-weight: bold;
         margin: 0 auto 1rem auto;
         box-shadow: 0 4px 15px rgba(13, 110, 253, 0.4);
+        overflow: hidden;
     }
     .form-control-lg {
         font-size: 1rem;
@@ -99,9 +106,16 @@ $conn->close();
     
     <div class="mb-4 text-center">
       <div class="profile-avatar">
-          <?= strtoupper(substr($current_name, 0, 1)) ?>
+          <?php if (isset($_SESSION['avatar_seed']) && !empty($_SESSION['avatar_seed'])): ?>
+              <?php
+                  $avatar_url = "https://api.dicebear.com/8.x/croodles/svg?seed=" . urlencode($_SESSION['avatar_seed']);
+              ?>
+              <img src="<?= $avatar_url ?>" alt="Avatar Pengguna" style="width: 100%; height: 100%; border-radius: 50%;">
+          <?php else: ?>
+              <?= strtoupper(substr($current_name, 0, 1)) ?>
+          <?php endif; ?>
       </div>
-      <h2 class="mb-0 fw-bold"><?= $current_name ?></h4>
+      <h2 class="mb-0 fw-bold"><?= $current_name ?></h2>
       <p class="text-muted"><?= $current_email ?></p>
     </div>
 
