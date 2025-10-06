@@ -117,13 +117,39 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['action']) && $_POST['a
 }
 
 
-// --- PENGAMBILAN DATA UNTUK DITAMPILKAN (TIDAK ADA PERUBAHAN) ---
+// --- PENGAMBILAN DATA & LOGIKA PENCARIAN ---
+
+// Statistik Total
 $total_users = $conn->query("SELECT COUNT(id) as total FROM users")->fetch_assoc()['total'];
 $total_mahasiswa_resmi = $conn->query("SELECT COUNT(nim) as total FROM mahasiswa_resmi")->fetch_assoc()['total'];
 $total_buku = $conn->query("SELECT COUNT(id) as total FROM buku")->fetch_assoc()['total'];
-$buku_result = $conn->query("SELECT id, judul, penulis, cover_path FROM buku ORDER BY id DESC");
-$mahasiswa_resmi_result = $conn->query("SELECT nim, nama_lengkap FROM mahasiswa_resmi ORDER BY nim ASC");
-$users_result = $conn->query("SELECT id, username, email, nim, role FROM users ORDER BY id ASC");
+
+// Logika Pencarian Buku
+$search_buku_query = isset($_GET['search_buku']) ? trim($_GET['search_buku']) : '';
+$sql_buku = "SELECT id, judul, penulis, cover_path FROM buku";
+if (!empty($search_buku_query)) {
+    $sql_buku .= " WHERE judul LIKE '%" . $conn->real_escape_string($search_buku_query) . "%' OR penulis LIKE '%" . $conn->real_escape_string($search_buku_query) . "%'";
+}
+$sql_buku .= " ORDER BY id DESC";
+$buku_result = $conn->query($sql_buku);
+
+// Logika Pencarian Mahasiswa
+$search_mhs_query = isset($_GET['search_mhs']) ? trim($_GET['search_mhs']) : '';
+$sql_mahasiswa = "SELECT nim, nama_lengkap FROM mahasiswa_resmi";
+if (!empty($search_mhs_query)) {
+    $sql_mahasiswa .= " WHERE nim LIKE '%" . $conn->real_escape_string($search_mhs_query) . "%' OR nama_lengkap LIKE '%" . $conn->real_escape_string($search_mhs_query) . "%'";
+}
+$sql_mahasiswa .= " ORDER BY nim ASC";
+$mahasiswa_resmi_result = $conn->query($sql_mahasiswa);
+
+// Logika Pencarian User
+$search_user_query = isset($_GET['search_user']) ? trim($_GET['search_user']) : '';
+$sql_users = "SELECT id, username, email, nim, role FROM users";
+if (!empty($search_user_query)) {
+    $sql_users .= " WHERE username LIKE '%" . $conn->real_escape_string($search_user_query) . "%' OR email LIKE '%" . $conn->real_escape_string($search_user_query) . "%' OR nim LIKE '%" . $conn->real_escape_string($search_user_query) . "%'";
+}
+$sql_users .= " ORDER BY id ASC";
+$users_result = $conn->query($sql_users);
 
 ?>
 <!DOCTYPE html>
@@ -228,6 +254,22 @@ $users_result = $conn->query("SELECT id, username, email, nim, role FROM users O
         .btn-icon {
             padding: 0.375rem 0.6rem;
         }
+        
+        /* --- CSS UNTUK SCROLLABLE TABLE --- */
+        .table-scroll-container {
+            max-height: 450px; /* Anda bisa sesuaikan tinggi maksimal kotak di sini */
+            overflow-y: auto;  /* Ini akan menambahkan scrollbar jika konten lebih tinggi */
+            border: 1px solid #dee2e6;
+            border-radius: 0.25rem;
+        }
+        /* Membuat header tabel tetap terlihat (sticky) saat scroll */
+        .table-scroll-container thead th {
+            position: sticky;
+            top: 0;
+            background: #f8f9fa; /* Warna latar belakang header */
+            z-index: 1; /* Memastikan header di atas konten lain */
+        }
+        
         @media (max-width: 992px) {
             .sidebar {
                 position: static;
@@ -355,22 +397,32 @@ $users_result = $conn->query("SELECT id, username, email, nim, role FROM users O
             </form>
             <hr class="my-4">
             <h5>Daftar Buku di Perpustakaan</h5>
-            <div class="table-responsive"><table class="table table-custom table-hover">
-                <thead><tr><th>Cover</th><th>Judul</th><th>Penulis</th><th class="text-end">Aksi</th></tr></thead>
-                <tbody>
-                    <?php while($row = $buku_result->fetch_assoc()): ?>
-                    <tr>
-                        <td><img src="../<?= htmlspecialchars($row['cover_path']) ?>" alt="cover"></td>
-                        <td><?= htmlspecialchars($row['judul']) ?></td>
-                        <td><?= htmlspecialchars($row['penulis']) ?></td>
-                        <td class="text-end">
-                            <a href="edit_buku.php?id=<?= $row['id'] ?>" class="btn btn-warning btn-icon" title="Edit"><i class="bi bi-pencil-square"></i></a>
-                            <a href="index.php?action=delete_book&id=<?= $row['id'] ?>" class="btn btn-danger btn-icon" onclick="return confirm('Yakin ingin menghapus buku ini?')" title="Hapus"><i class="bi bi-trash3-fill"></i></a>
-                        </td>
-                    </tr>
-                    <?php endwhile; ?>
-                </tbody>
-            </table></div>
+            
+            <form action="#kelola-buku" method="GET" class="mb-3">
+                <div class="input-group">
+                    <input type="text" name="search_buku" class="form-control" placeholder="Cari Judul atau Penulis Buku..." value="<?= htmlspecialchars($search_buku_query) ?>">
+                    <button class="btn btn-primary" type="submit"><i class="bi bi-search"></i></button>
+                </div>
+            </form>
+            
+            <div class="table-scroll-container">
+                <table class="table table-custom table-hover mb-0">
+                    <thead><tr><th>Cover</th><th>Judul</th><th>Penulis</th><th class="text-end">Aksi</th></tr></thead>
+                    <tbody>
+                        <?php while($row = $buku_result->fetch_assoc()): ?>
+                        <tr>
+                            <td><img src="../<?= htmlspecialchars($row['cover_path']) ?>" alt="cover"></td>
+                            <td><?= htmlspecialchars($row['judul']) ?></td>
+                            <td><?= htmlspecialchars($row['penulis']) ?></td>
+                            <td class="text-end">
+                                <a href="edit_buku.php?id=<?= $row['id'] ?>" class="btn btn-warning btn-icon" title="Edit"><i class="bi bi-pencil-square"></i></a>
+                                <a href="index.php?action=delete_book&id=<?= $row['id'] ?>" class="btn btn-danger btn-icon" onclick="return confirm('Yakin ingin menghapus buku ini?')" title="Hapus"><i class="bi bi-trash3-fill"></i></a>
+                            </td>
+                        </tr>
+                        <?php endwhile; ?>
+                    </tbody>
+                </table>
+            </div>
         </div>
     </div>
 
@@ -390,18 +442,28 @@ $users_result = $conn->query("SELECT id, username, email, nim, role FROM users O
             </form>
             <hr class="my-4">
             <h5>Daftar Mahasiswa Resmi</h5>
-            <div class="table-responsive"><table class="table table-custom table-hover">
-                <thead><tr><th>NIM</th><th>Nama Lengkap</th><th class="text-end">Aksi</th></tr></thead>
-                <tbody>
-                    <?php while($row = $mahasiswa_resmi_result->fetch_assoc()): ?>
-                    <tr>
-                        <td><?= htmlspecialchars($row['nim']) ?></td>
-                        <td><?= htmlspecialchars($row['nama_lengkap']) ?></td>
-                        <td class="text-end"><a href="index.php?action=delete_mahasiswa&nim=<?= urlencode($row['nim']) ?>" class="btn btn-danger btn-sm" onclick="return confirm('Yakin?')">Hapus</a></td>
-                    </tr>
-                    <?php endwhile; ?>
-                </tbody>
-            </table></div>
+            
+            <form action="#kelola-mahasiswa" method="GET" class="mb-3">
+                <div class="input-group">
+                    <input type="text" name="search_mhs" class="form-control" placeholder="Cari NIM atau Nama Mahasiswa..." value="<?= htmlspecialchars($search_mhs_query) ?>">
+                    <button class="btn btn-primary" type="submit"><i class="bi bi-search"></i></button>
+                </div>
+            </form>
+
+            <div class="table-scroll-container">
+                <table class="table table-custom table-hover mb-0">
+                    <thead><tr><th>NIM</th><th>Nama Lengkap</th><th class="text-end">Aksi</th></tr></thead>
+                    <tbody>
+                        <?php while($row = $mahasiswa_resmi_result->fetch_assoc()): ?>
+                        <tr>
+                            <td><?= htmlspecialchars($row['nim']) ?></td>
+                            <td><?= htmlspecialchars($row['nama_lengkap']) ?></td>
+                            <td class="text-end"><a href="index.php?action=delete_mahasiswa&nim=<?= urlencode($row['nim']) ?>" class="btn btn-danger btn-sm" onclick="return confirm('Yakin?')">Hapus</a></td>
+                        </tr>
+                        <?php endwhile; ?>
+                    </tbody>
+                </table>
+            </div>
         </div>
     </div>
 
@@ -410,34 +472,44 @@ $users_result = $conn->query("SELECT id, username, email, nim, role FROM users O
             <h4 class="mb-0"><i class="bi bi-person-gear me-2"></i> Kelola Akun Pengguna</h4>
         </div>
         <div class="card-body p-4">
-            <div class="table-responsive"><table class="table table-custom table-hover">
-                <thead><tr><th>ID</th><th>Username</th><th>Email</th><th>NIM</th><th>Role</th><th class="text-end">Aksi</th></tr></thead>
-                <tbody>
-                    <?php while($row = $users_result->fetch_assoc()): ?>
-                    <tr>
-                        <td><?= $row['id'] ?></td>
-                        <td><?= htmlspecialchars($row['username']) ?></td>
-                        <td><?= htmlspecialchars($row['email']) ?></td>
-                        <td><?= htmlspecialchars($row['nim'] ?? 'N/A') ?></td>
-                        <td>
-                            <form action="index.php" method="POST" style="min-width: 100px;">
-                                <input type="hidden" name="action" value="update_role">
-                                <input type="hidden" name="user_id" value="<?= $row['id'] ?>">
-                                <select name="role" class="form-select form-select-sm" onchange="this.form.submit()" <?= ($row['id'] == $_SESSION['user_id']) ? 'disabled' : '' ?>>
-                                    <option value="user" <?= ($row['role'] == 'user') ? 'selected' : '' ?>>User</option>
-                                    <option value="admin" <?= ($row['role'] == 'admin') ? 'selected' : '' ?>>Admin</option>
-                                </select>
-                            </form>
-                        </td>
-                        <td class="text-end">
-                            <?php if ($row['id'] != $_SESSION['user_id']): ?>
-                            <a href="index.php?action=delete_user&id=<?= $row['id'] ?>" class="btn btn-danger btn-sm" onclick="return confirm('Yakin?')">Hapus</a>
-                            <?php endif; ?>
-                        </td>
-                    </tr>
-                    <?php endwhile; ?>
-                </tbody>
-            </table></div>
+
+             <form action="#kelola-akun" method="GET" class="mb-3">
+                <div class="input-group">
+                    <input type="text" name="search_user" class="form-control" placeholder="Cari Username, Email, atau NIM..." value="<?= htmlspecialchars($search_user_query) ?>">
+                    <button class="btn btn-primary" type="submit"><i class="bi bi-search"></i></button>
+                </div>
+            </form>
+
+            <div class="table-scroll-container">
+                <table class="table table-custom table-hover mb-0">
+                    <thead><tr><th>ID</th><th>Username</th><th>Email</th><th>NIM</th><th>Role</th><th class="text-end">Aksi</th></tr></thead>
+                    <tbody>
+                        <?php while($row = $users_result->fetch_assoc()): ?>
+                        <tr>
+                            <td><?= $row['id'] ?></td>
+                            <td><?= htmlspecialchars($row['username']) ?></td>
+                            <td><?= htmlspecialchars($row['email']) ?></td>
+                            <td><?= htmlspecialchars($row['nim'] ?? 'N/A') ?></td>
+                            <td>
+                                <form action="index.php" method="POST" style="min-width: 100px;">
+                                    <input type="hidden" name="action" value="update_role">
+                                    <input type="hidden" name="user_id" value="<?= $row['id'] ?>">
+                                    <select name="role" class="form-select form-select-sm" onchange="this.form.submit()" <?= ($row['id'] == $_SESSION['user_id']) ? 'disabled' : '' ?>>
+                                        <option value="user" <?= ($row['role'] == 'user') ? 'selected' : '' ?>>User</option>
+                                        <option value="admin" <?= ($row['role'] == 'admin') ? 'selected' : '' ?>>Admin</option>
+                                    </select>
+                                </form>
+                            </td>
+                            <td class="text-end">
+                                <?php if ($row['id'] != $_SESSION['user_id']): ?>
+                                <a href="index.php?action=delete_user&id=<?= $row['id'] ?>" class="btn btn-danger btn-sm" onclick="return confirm('Yakin?')">Hapus</a>
+                                <?php endif; ?>
+                            </td>
+                        </tr>
+                        <?php endwhile; ?>
+                    </tbody>
+                </table>
+            </div>
         </div>
     </div>
 </div>
