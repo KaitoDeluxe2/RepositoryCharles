@@ -17,13 +17,11 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
     $name = $_POST['name'];
     $email = $_POST['email'];
 
-    // Validasi sederhana: pastikan input tidak kosong
     if (!empty($name) && !empty($email)) {
         $stmt = $conn->prepare("UPDATE users SET username = ?, email = ? WHERE id = ?");
         $stmt->bind_param("ssi", $name, $email, $user_id);
 
         if ($stmt->execute()) {
-            // Perbarui juga data di session agar langsung tampil di halaman
             $_SESSION['username'] = $name;
             $_SESSION['email'] = $email;
             $message = "Perubahan berhasil disimpan!";
@@ -42,6 +40,9 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
 // Ambil data terbaru dari session untuk ditampilkan
 $current_name = htmlspecialchars($_SESSION['username']);
 $current_email = htmlspecialchars($_SESSION['email']);
+$current_nim = htmlspecialchars($_SESSION['nim'] ?? 'N/A');
+$current_role = $_SESSION['role'];
+
 $conn->close();
 ?>
 <!DOCTYPE html>
@@ -52,6 +53,16 @@ $conn->close();
   <title>Pengaturan Akun - <?= $current_name ?></title>
   <link href="../css/bootstrap.min.css" rel="stylesheet">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+  
+  <script>
+      (function() {
+          const theme = localStorage.getItem('theme');
+          if (theme === 'dark') {
+              document.documentElement.classList.add('dark-mode');
+          }
+      })();
+  </script>
+
   <style>
     body {
         min-height: 100vh;
@@ -61,11 +72,22 @@ $conn->close();
         background-image: url('../Gambar/PerpusGambar.png');
         background-size: cover;
         background-position: center;
+        position: relative;
+    }
+    body::before {
+        content: '';
+        position: absolute;
+        top: 0; left: 0; right: 0; bottom: 0;
+        background-color: rgba(0, 0, 0, 0.3); /* Overlay default (sedikit gelap) */
+        z-index: 1;
+        transition: background-color 0.3s ease;
     }
     .profile-card {
+        position: relative;
+        z-index: 2;
         background-color: rgba(255, 255, 255, 0.9);
-        backdrop-filter: blur(15px);
-        -webkit-backdrop-filter: blur(15px);
+        backdrop-filter: blur(10px);
+        -webkit-backdrop-filter: blur(10px);
         padding: 2.5rem;
         border-radius: 1rem;
         box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.37);
@@ -74,27 +96,49 @@ $conn->close();
         max-width: 500px;
     }
     .profile-avatar {
-        width: 100px;
-        height: 100px;
-        border-radius: 50%;
-        background-color: #0d6efd;
-        color: white;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        font-size: 3rem;
-        font-weight: bold;
+        width: 100px; height: 100px; border-radius: 50%;
+        background-color: #0d6efd; color: white;
+        display: flex; align-items: center; justify-content: center;
+        font-size: 3rem; font-weight: bold;
         margin: 0 auto 1rem auto;
         box-shadow: 0 4px 15px rgba(13, 110, 253, 0.4);
         overflow: hidden;
     }
-    .form-control-lg {
-        font-size: 1rem;
-        padding: 0.75rem 1rem;
+    .form-control-lg { font-size: 1rem; padding: 0.75rem 1rem; }
+    .btn-lg { padding: 0.75rem 1rem; font-size: 1.05rem; }
+
+    /* --- PERBAIKAN CSS DARK MODE --- */
+    html.dark-mode body::before {
+        background-color: rgba(0, 0, 0, 0.6); /* Overlay dibuat lebih gelap */
     }
-    .btn-lg {
-        padding: 0.75rem 1rem;
-        font-size: 1.05rem;
+    html.dark-mode .profile-card {
+        background-color: rgba(36, 37, 38, 0.85); /* Kartu menjadi gelap transparan */
+        border: 1px solid rgba(255, 255, 255, 0.1);
+    }
+    html.dark-mode h2,
+    html.dark-mode .form-label {
+        color: #e4e6eb;
+    }
+    html.dark-mode .text-muted {
+        color: #b0b3b8 !important;
+    }
+    html.dark-mode .form-control {
+        background-color: #3a3b3c;
+        color: #e4e6eb;
+        border-color: #4a4a4d;
+    }
+    html.dark-mode .input-group-text {
+        background-color: #3a3b3c;
+        border-color: #4a4a4d;
+        color: #e4e6eb;
+    }
+    html.dark-mode .btn-outline-secondary {
+        color: #e4e6eb;
+        border-color: #6c757d;
+    }
+    html.dark-mode .btn-outline-secondary:hover {
+        background-color: #6c757d;
+        color: white;
     }
   </style>
 </head>
@@ -107,16 +151,18 @@ $conn->close();
     <div class="mb-4 text-center">
       <div class="profile-avatar">
           <?php if (isset($_SESSION['avatar_seed']) && !empty($_SESSION['avatar_seed'])): ?>
-              <?php
-                  $avatar_url = "https://api.dicebear.com/8.x/croodles/svg?seed=" . urlencode($_SESSION['avatar_seed']);
-              ?>
-              <img src="<?= $avatar_url ?>" alt="Avatar Pengguna" style="width: 100%; height: 100%; border-radius: 50%;">
+              <img src="<?= "https://api.dicebear.com/8.x/croodles/svg?seed=" . urlencode($_SESSION['avatar_seed']) ?>" alt="Avatar Pengguna" style="width: 100%; height: 100%; border-radius: 50%;">
           <?php else: ?>
               <?= strtoupper(substr($current_name, 0, 1)) ?>
           <?php endif; ?>
       </div>
       <h2 class="mb-0 fw-bold"><?= $current_name ?></h2>
-      <p class="text-muted"><?= $current_email ?></p>
+      <p class="text-muted mb-1"><?= $current_email ?></p>
+      
+      <?php if ($current_role !== 'admin' && $current_nim !== 'N/A'): ?>
+        <p class="text-muted">NIM: <?= $current_nim ?></p>
+      <?php endif; ?>
+
     </div>
 
     <form action="akun.php" method="POST" autocomplete="off">

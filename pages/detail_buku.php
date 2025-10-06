@@ -34,28 +34,38 @@ $conn->close();
     <title>Detail Buku - <?= htmlspecialchars($book['judul']) ?></title>
     <link href="../css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+
+    <script>
+        (function() {
+            const theme = localStorage.getItem('theme');
+            if (theme === 'dark') {
+                document.documentElement.classList.add('dark-mode');
+            }
+        })();
+    </script>
+
     <style>
-        /* CSS BARU UNTUK TAMPILAN MODERN */
         body {
             background-color: #f0f2f5; /* Latar belakang abu-abu lembut */
             padding-top: 2rem;
             padding-bottom: 2rem;
+            transition: background-color 0.3s ease;
         }
         .book-detail-card {
             background-color: #ffffff;
             border-radius: 1rem;
             box-shadow: 0 8px 30px rgba(0, 0, 0, 0.08);
             border: none;
-            overflow: hidden; /* Penting untuk menjaga sudut rounded */
+            overflow: hidden; 
         }
         .book-cover-container {
             padding: 2.5rem;
-            /* [DIUBAH] Latar belakang akan diisi oleh JavaScript */
-            background: #e9ecef; /* Warna fallback jika JS gagal */
+            background: #e9ecef; 
             display: flex;
             align-items: center;
             justify-content: center;
-            transition: background 0.5s ease-in-out; /* Animasi transisi warna */
+            text-align: center;
+            transition: background 0.5s ease-in-out;
         }
         .book-cover-img {
             max-width: 100%;
@@ -64,7 +74,6 @@ $conn->close();
             border-radius: 0.5rem;
             box-shadow: 0 10px 25px rgba(0, 0, 0, 0.15);
             transition: transform 0.3s ease;
-            /* [BARU] Atribut ini penting agar JavaScript bisa mengakses data gambar */
             crossorigin="anonymous"
         }
         .book-cover-img:hover {
@@ -75,58 +84,30 @@ $conn->close();
             display: flex;
             flex-direction: column;
         }
-        .book-title {
-            font-weight: 700;
-            color: #212529;
-        }
-        .author-name {
-            font-size: 1.25rem;
-            color: #6c757d;
-            margin-top: -5px;
-        }
-        .section-title {
-            font-weight: 600;
-            margin-top: 1.5rem;
-            margin-bottom: 1rem;
-            color: #495057;
-            border-bottom: 2px solid #0d6efd;
-            padding-bottom: 0.5rem;
-            display: inline-block;
-        }
-        .details-list {
-            list-style: none;
-            padding: 0;
-        }
-        .details-list li {
-            display: flex;
-            align-items: flex-start;
-            margin-bottom: 0.85rem;
-            font-size: 1rem;
-        }
-        .details-list .icon {
-            color: #0d6efd;
-            margin-right: 12px;
-            font-size: 1.2rem;
-            width: 24px;
-            text-align: center;
-            padding-top: 2px;
-        }
-        .details-list .label {
-            font-weight: 600;
-            width: 110px;
-            flex-shrink: 0;
-            color: #343a40;
-        }
-        .details-list .value {
-            color: #495057;
-        }
-        .action-buttons {
-            margin-top: auto; /* Mendorong tombol ke bawah */
-            padding-top: 1.5rem;
-        }
+        .book-title { font-weight: 700; color: #212529; }
+        .author-name { font-size: 1.25rem; color: #6c757d; margin-top: -5px; }
+        .section-title { font-weight: 600; margin-top: 1.5rem; margin-bottom: 1rem; color: #495057; border-bottom: 2px solid #0d6efd; padding-bottom: 0.5rem; display: inline-block; }
+        .details-list { list-style: none; padding: 0; }
+        .details-list li { display: flex; align-items: flex-start; margin-bottom: 0.85rem; font-size: 1rem; }
+        .details-list .icon { color: #0d6efd; margin-right: 12px; font-size: 1.2rem; width: 24px; text-align: center; padding-top: 2px; }
+        .details-list .label { font-weight: 600; width: 110px; flex-shrink: 0; color: #343a40; }
+        .details-list .value { color: #495057; }
+        .action-buttons { margin-top: auto; padding-top: 1.5rem; }
+
+        /* --- CSS BARU UNTUK DARK MODE --- */
+        html.dark-mode body { background-color: #18191a; }
+        html.dark-mode .book-detail-card { background-color: #242526; border-color: #3a3b3c; }
+        html.dark-mode .book-title,
+        html.dark-mode .section-title,
+        html.dark-mode .details-list .label { color: #e4e6eb; }
+        html.dark-mode .author-name,
+        html.dark-mode p.text-secondary,
+        html.dark-mode .details-list .value { color: #b0b3b8; }
+        html.dark-mode .btn-outline-secondary { color: #e4e6eb; border-color: #6c757d; }
+        html.dark-mode .btn-outline-secondary:hover { background-color: #6c757d; color: white; }
     </style>
 </head>
-<body class="bg-light">
+<body>
 
 <div class="container my-auto">
     <div class="book-detail-card">
@@ -188,34 +169,24 @@ $conn->close();
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/color-thief/2.3.0/color-thief.umd.js"></script>
 <script>
-    // Pastikan DOM sudah siap
     document.addEventListener('DOMContentLoaded', (event) => {
         const colorThief = new ColorThief();
         const img = document.querySelector('.book-cover-img');
         const targetContainer = document.querySelector('.book-cover-container');
 
-        // Fungsi untuk mengambil warna dan mengubah background
         const setBackgroundColor = (imageElement) => {
             try {
-                // Ambil warna dominan dari gambar
                 const dominantColor = colorThief.getColor(imageElement);
-                
-                // Buat warna kedua yang sedikit lebih gelap untuk gradasi
                 const darkerColor = dominantColor.map(c => Math.max(0, c - 40));
-                
-                // Aplikasikan sebagai background gradient untuk efek yang lebih halus
                 targetContainer.style.background = `linear-gradient(135deg, rgb(${dominantColor.join(',')}), rgb(${darkerColor.join(',')}))`;
             } catch (e) {
                 console.error("Error getting color from image:", e);
-                // Jika gagal, biarkan warna fallback dari CSS
             }
         };
 
-        // Cek apakah gambar sudah selesai dimuat oleh browser
         if (img.complete) {
             setBackgroundColor(img);
         } else {
-            // Jika belum, tunggu sampai gambar selesai dimuat
             img.addEventListener('load', function() {
                 setBackgroundColor(this);
             });

@@ -6,8 +6,8 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
     $username = $_POST['username'];
     $password = $_POST['password'];
 
-    // [DIUBAH] Tambahkan 'avatar_seed' ke dalam query SELECT
-    $stmt = $conn->prepare("SELECT id, username, email, password, role, avatar_seed FROM users WHERE username = ?");
+    // [DIUBAH] Tambahkan 'nim' ke dalam query SELECT
+    $stmt = $conn->prepare("SELECT id, username, email, nim, password, role, avatar_seed FROM users WHERE username = ?");
     $stmt->bind_param("s", $username);
     $stmt->execute();
     $result = $stmt->get_result();
@@ -19,8 +19,9 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
             $_SESSION['username'] = $user['username'];
             $_SESSION['email'] = $user['email'];
             $_SESSION['role'] = $user['role'];
-            // [KODE BARU] Simpan avatar_seed ke session
             $_SESSION['avatar_seed'] = $user['avatar_seed'];
+            // [KODE BARU] Simpan nim ke session
+            $_SESSION['nim'] = $user['nim'];
 
             if ($_SESSION['role'] === 'admin') {
                 header("Location: admin/");
