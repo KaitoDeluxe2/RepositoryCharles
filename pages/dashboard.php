@@ -2,17 +2,15 @@
 session_start();
 include '../includes/db.php';
 
-if (!isset($_SESSION['user_id'])) {
-    header("Location: ../login.php");
-    exit;
-}
-
-$namaPengguna = htmlspecialchars($_SESSION['username']);
+// PERUBAHAN: Hapus pengecekan login wajib
+// Sekarang dashboard bisa diakses tanpa login
+$is_logged_in = isset($_SESSION['user_id']);
+$namaPengguna = $is_logged_in ? htmlspecialchars($_SESSION['username']) : 'Pengunjung';
 
 $search_query = isset($_GET['search']) ? trim($_GET['search']) : '';
 $is_searching = !empty($search_query);
 
-// --- LOGIKA PAGINASI DAN PENGAMBILAN DATA ---
+// --- LOGIKA PAGINASI DAN PENGAMBILAN DATA (SAMA SEPERTI ASLI) ---
 $buku_per_halaman = 12;
 
 $halaman_aktif = isset($_GET['page']) && is_numeric($_GET['page']) ? (int)$_GET['page'] : 1;
@@ -119,6 +117,15 @@ $books_result = $stmt_data->get_result();
     .slider.round:before { border-radius: 50%; }
     .theme-switch-wrapper .bi { margin-left: 8px; font-size: 1.2rem; color: #fff; }
 
+    /* Alert info untuk pengunjung */
+    .guest-alert { 
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        border: none;
+        box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
+    }
+    .guest-alert a { color: #fff; text-decoration: underline; font-weight: bold; }
+
     html.dark-mode body { background-color: #18191a; color: #e4e6eb; }
     html.dark-mode .bg-white, html.dark-mode .card, html.dark-mode .bg-light, html.dark-mode .dropdown-menu { background-color: #242526 !important; color: #e4e6eb; border-color: #3a3b3c !important; }
     html.dark-mode .navbar-dark { background-color: rgba(33, 37, 41, 0.85) !important; backdrop-filter: blur(10px); }
@@ -157,6 +164,9 @@ $books_result = $stmt_data->get_result();
                 <i class="bi bi-moon-fill"></i>
             </div>
           </li>
+          
+          <?php if ($is_logged_in): ?>
+          <!-- Menu untuk user yang sudah login -->
           <li class="nav-item dropdown">
             <a class="nav-link dropdown-toggle" href="#" id="navbarDropdownMenuLink" role="button" data-bs-toggle="dropdown"><i class="bi bi-person-circle"></i> <?= $namaPengguna ?></a>
             <ul class="dropdown-menu dropdown-menu-end">
@@ -168,6 +178,19 @@ $books_result = $stmt_data->get_result();
               <li><a class="dropdown-item text-danger" href="../logout.php">Logout</a></li>
             </ul>
           </li>
+          <?php else: ?>
+          <!-- Menu untuk pengunjung (belum login) -->
+          <li class="nav-item">
+            <a class="nav-link btn btn-outline-light btn-sm me-2" href="../login.php">
+              <i class="bi bi-box-arrow-in-right"></i> Login
+            </a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link btn btn-light btn-sm" href="../register.html">
+              <i class="bi bi-person-plus-fill"></i> Register
+            </a>
+          </li>
+          <?php endif; ?>
         </ul>
       </div>
     </div>
@@ -189,6 +212,16 @@ $books_result = $stmt_data->get_result();
   </header>
 
   <main class="container my-5">
+    
+    <?php if (!$is_logged_in): ?>
+    <!-- Alert untuk pengunjung yang belum login -->
+    <div class="alert guest-alert alert-dismissible fade show" role="alert">
+      <h5 class="alert-heading"><i class="bi bi-info-circle-fill"></i> Halo, Pengunjung!</h5>
+      <p class="mb-0">Anda dapat melihat koleksi buku, tetapi untuk <strong>membaca buku lengkap</strong> dan <strong>berdiskusi</strong>, silakan <a href="../login.php">login terlebih dahulu</a>.</p>
+      <button type="button" class="btn-close btn-close-white" data-bs-dismiss="alert" aria-label="Close"></button>
+    </div>
+    <?php endif; ?>
+
     <section class="book-collection">
       <?php if ($is_searching): ?>
         <h2 class="section-title">Hasil pencarian untuk: "<?= htmlspecialchars($search_query) ?>"</h2>

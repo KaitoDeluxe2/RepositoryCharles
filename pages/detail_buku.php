@@ -2,6 +2,9 @@
 session_start();
 include '../includes/db.php';
 
+// PERUBAHAN: Detail buku bisa dilihat tanpa login
+$is_logged_in = isset($_SESSION['user_id']);
+
 // Jika tidak ada ID buku di URL, kembalikan ke dashboard
 if (!isset($_GET['id'])) {
     header("Location: dashboard.php");
@@ -10,7 +13,7 @@ if (!isset($_GET['id'])) {
 
 $book_id = $_GET['id'];
 
-// Ambil semua data untuk buku yang dipilih
+// Ambil semua data untuk buku yang dipilih (gunakan tabel 'buku')
 $stmt = $conn->prepare("SELECT * FROM buku WHERE id = ?");
 $stmt->bind_param("i", $book_id);
 $stmt->execute();
@@ -46,7 +49,7 @@ $conn->close();
 
     <style>
         body {
-            background-color: #f0f2f5; /* Latar belakang abu-abu lembut */
+            background-color: #f0f2f5;
             padding-top: 2rem;
             padding-bottom: 2rem;
             transition: background-color 0.3s ease;
@@ -94,7 +97,19 @@ $conn->close();
         .details-list .value { color: #495057; }
         .action-buttons { margin-top: auto; padding-top: 1.5rem; }
 
-        /* --- CSS BARU UNTUK DARK MODE --- */
+        /* Alert untuk pengunjung */
+        .login-required-alert {
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+            color: white;
+            border: none;
+            box-shadow: 0 4px 15px rgba(245, 87, 108, 0.4);
+        }
+        .login-required-alert a {
+            color: white;
+            text-decoration: underline;
+            font-weight: bold;
+        }
+
         html.dark-mode body { background-color: #18191a; }
         html.dark-mode .book-detail-card { background-color: #242526; border-color: #3a3b3c; }
         html.dark-mode .book-title,
@@ -150,6 +165,8 @@ $conn->close();
                 </div>
                 
                 <div class="action-buttons">
+                    <?php if ($is_logged_in): ?>
+                    <!-- User sudah login - Bisa akses semua fitur -->
                     <div class="d-grid gap-2">
                         <a href="baca_buku.php?file=<?= urlencode(basename($book['file_path'])) ?>&title=<?= urlencode($book['judul']) ?>" class="btn btn-success btn-lg">
                             <i class="bi bi-eye-fill"></i> Baca Buku Sekarang
@@ -161,6 +178,20 @@ $conn->close();
                             <i class="bi bi-arrow-left-circle"></i> Kembali ke Daftar Buku
                         </a>
                     </div>
+                    <?php else: ?>
+                    <!-- Pengunjung belum login - Langsung tampilkan tombol login -->
+                    <div class="d-grid gap-2">
+                        <a href="../login.php" class="btn btn-success btn-lg">
+                            <i class="bi bi-box-arrow-in-right"></i> Login untuk Baca Buku
+                        </a>
+                        <a href="../login.php" class="btn btn-primary btn-lg">
+                            <i class="bi bi-chat-dots-fill"></i> Login untuk Diskusi
+                        </a>
+                        <a href="dashboard.php" class="btn btn-outline-secondary">
+                            <i class="bi bi-arrow-left-circle"></i> Kembali ke Daftar Buku
+                        </a>
+                    </div>
+                    <?php endif; ?>
                 </div>
             </div>
         </div>
