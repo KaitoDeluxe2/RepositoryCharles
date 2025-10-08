@@ -39,11 +39,11 @@ $disliked_comments = array_column($disliked_comments_result->fetch_all(MYSQLI_AS
 $stmt_disliked->close();
 
 
-// Query utama untuk komentar, ditambahkan join untuk mengambil username parent
+// Query utama untuk komentar, ditambahkan join untuk mengambil username parent dan role user
 $query = "
     SELECT 
         d.id, d.user_id, d.username, d.komentar, d.tanggal, d.parent_id, 
-        d.likes, d.dislikes, u.avatar_seed, 
+        d.likes, d.dislikes, u.avatar_seed, u.role,
         parent.username AS parent_username 
     FROM diskusi d 
     LEFT JOIN users u ON d.user_id = u.id 
@@ -68,6 +68,8 @@ function tampilkan_komentar($parent_id, $komentar, $book_id, $liked_comments, $d
         
         foreach ($komentar[$parent_id] as $item) {
             $is_admin = isset($_SESSION['role']) && $_SESSION['role'] === 'admin';
+            $is_owner = isset($_SESSION['user_id']) && $_SESSION['user_id'] == $item['user_id'];
+
             $is_liked = in_array($item['id'], $liked_comments);
             $is_disliked = in_array($item['id'], $disliked_comments);
             $like_btn_class = $is_liked ? 'btn-primary' : 'btn-outline-primary';
@@ -76,6 +78,10 @@ function tampilkan_komentar($parent_id, $komentar, $book_id, $liked_comments, $d
 
             $username_display = '<h6 class="fw-bold mb-0">';
             $username_display .= htmlspecialchars($item['username']);
+             // Tambahkan badge Admin jika role-nya admin
+            if ($item['role'] === 'admin') {
+                $username_display .= ' <span class="badge bg-primary">Admin</span>';
+            }
             if (!empty($item['parent_username'])) {
                 $username_display .= ' <span class="text-muted fw-normal">membalas</span> ' . htmlspecialchars($item['parent_username']);
             }
@@ -96,16 +102,42 @@ function tampilkan_komentar($parent_id, $komentar, $book_id, $liked_comments, $d
         
                     echo '<div class="w-100">
                             <div class="d-flex justify-content-between align-items-center">'
-                                . $username_display;
-                    if ($is_admin) {
-                        echo '<a href="delete_comment.php?id=' . $item['id'] . '&book_id=' . $book_id . '" 
-                                   class="btn btn-sm btn-outline-danger admin-delete-btn"
-                                   onclick="return confirm(\'Hapus komentar ini?\')"
-                                   title="Hapus Komentar"><i class="bi bi-trash"></i></a>';
-                    }
-                    echo    '</div>
+                                . $username_display . '
+                                <div class="dropdown">
+                                    <button class="btn btn-sm btn-link text-secondary" type="button" data-bs-toggle="dropdown" aria-expanded="false">
+                                        <i class="bi bi-three-dots-vertical"></i>
+                                    </button>
+                                    <ul class="dropdown-menu dropdown-menu-end">
+                                    ';
+                                    if ($is_owner) {
+                                        echo '<li><a class="dropdown-item edit-btn" href="#" data-comment-id="' . $item['id'] . '"><i class="bi bi-pencil-fill me-2"></i>Edit</a></li>';
+                                        echo '<li><a class="dropdown-item delete-btn" href="#" data-comment-id="' . $item['id'] . '"><i class="bi bi-trash-fill me-2"></i>Hapus</a></li>';
+                                    }
+                                    if ($is_admin && !$is_owner) {
+                                        echo '<li><a class="dropdown-item" href="admin_hapus_komentar.php?id=' . $item['id'] . '&book_id=' . $book_id . '" onclick="return confirm(\'Hapus komentar dari ' . htmlspecialchars($item['username']) . ' ini?\')"><i class="bi bi-shield-fill-x me-2"></i>Hapus (Admin)</a></li>';
+                                    }
+                                    if (!$is_owner && !$is_admin) {
+                                        echo '<li><span class="dropdown-item disabled text-muted">Tidak ada aksi</span></li>';
+                                    }
+                                    echo '
+                                    </ul>
+                                </div>
+                            </div>
                             <p class="comment-meta mb-2">' . date('d F Y, H:i', strtotime($item['tanggal'])) . ' WIB</p>
-                            <div class="comment-body bg-light p-3 rounded-3"><p class="mb-0">' . nl2br(htmlspecialchars($item['komentar'])) . '</p></div>
+                            
+                            <div class="comment-body-wrapper">
+                                <div class="comment-body bg-light p-3 rounded-3"><p class="mb-0">' . nl2br(htmlspecialchars($item['komentar'])) . '</p></div>
+                                <div class="edit-form-wrapper" style="display: none;">
+                                    <form action="user_edit_komentar.php" method="POST">
+                                        <input type="hidden" name="comment_id" value="' . $item['id'] . '">
+                                        <input type="hidden" name="buku_id" value="' . $book_id . '">
+                                        <textarea name="komentar" class="form-control mb-2" rows="3">' . htmlspecialchars($item['komentar']) . '</textarea>
+                                        <button type="submit" class="btn btn-primary btn-sm">Simpan</button>
+                                        <button type="button" class="btn btn-secondary btn-sm cancel-edit-btn">Batal</button>
+                                    </form>
+                                </div>
+                            </div>
+
                             <div class="comment-actions mt-2">
                                 <button class="btn btn-sm btn-link text-decoration-none ps-0 fw-bold reply-btn" data-comment-id="' . $item['id'] . '"><i class="bi bi-reply-fill"></i> Balas</button>
                                 <button class="btn btn-sm ' . $like_btn_class . ' like-btn" data-comment-id="' . $item['id'] . '">
@@ -163,8 +195,6 @@ function tampilkan_komentar($parent_id, $komentar, $book_id, $liked_comments, $d
         .avatar { width: 48px; height: 48px; display: inline-flex; align-items: center; justify-content: center; background-color: #0d6efd; color: white; border-radius: 50%; font-weight: bold; font-size: 1.5rem; flex-shrink: 0; }
         .comment-form-box .avatar { width: 40px; height: 40px; font-size: 1rem; }
         #cancel-reply-btn { display: none; }
-        .admin-delete-btn { opacity: 0; transition: opacity 0.2s ease-in-out; }
-        .comment-item:hover .admin-delete-btn { opacity: 1; }
         .comment-actions { display: flex; align-items: center; gap: 0.5rem; }
         .like-btn, .dislike-btn { border-radius: 20px; padding: 0.2rem 0.8rem; font-size: 0.8rem; }
         .like-count, .dislike-count { margin-left: 0.3rem; font-weight: bold; }
@@ -175,10 +205,17 @@ function tampilkan_komentar($parent_id, $komentar, $book_id, $liked_comments, $d
         .toggle-replies-btn .bi { transition: transform 0.3s ease; }
         .toggle-replies-btn[aria-expanded="true"] .bi { transform: rotate(-180deg); }
         .comment-meta { color: #6c757d; }
+        .dropdown .btn-link { text-decoration: none; }
+        .dropdown-menu .dropdown-item { cursor: pointer; }
+        .dropdown-menu .bi { color: #6c757d; }
+        #comment-form-container > .card {
+            border-width: 2px;
+            border-color: #0d6efd;
+            box-shadow: 0 0.5rem 1rem rgba(13, 110, 253, 0.15) !important;
+        }
 
-        /* --- CSS BARU UNTUK DARK MODE --- */
         html.dark-mode body { background-color: #18191a; color: #e4e6eb; }
-        html.dark-mode .bg-white, html.dark-mode .card, html.dark-mode .bg-light { background-color: #242526 !important; color: #e4e6eb; border-color: #3a3b3c !important; }
+        html.dark-mode .bg-white, html.dark-mode .card, html.dark-mode .bg-light, html.dark-mode .dropdown-menu { background-color: #242526 !important; color: #e4e6eb; border-color: #3a3b3c !important; }
         html.dark-mode h1, html.dark-mode h2, html.dark-mode h3, html.dark-mode h4, html.dark-mode h5, html.dark-mode h6 { color: #e4e6eb; }
         html.dark-mode .text-muted, html.dark-mode .comment-meta { color: #b0b3b8 !important; }
         html.dark-mode .form-control { background-color: #3a3b3c; color: #e4e6eb; border-color: #4a4a4d; }
@@ -188,6 +225,10 @@ function tampilkan_komentar($parent_id, $komentar, $book_id, $liked_comments, $d
         html.dark-mode .btn-outline-secondary:hover { background-color: #6c757d; color: white; }
         html.dark-mode .comment-wrapper-top-level { border-top-color: #3a3b3c; }
         html.dark-mode .replies-container { border-left-color: #3a3b3c; }
+        html.dark-mode .dropdown-item { color: #e4e6eb; }
+        html.dark-mode .dropdown-item:hover { background-color: #3a3b3c; }
+        html.dark-mode .dropdown-menu .bi { color: #b0b3b8; }
+        html.dark-mode #comment-form-container > .card { border-color: #0d6efd; }
     </style>
 </head>
 <body>
@@ -236,6 +277,7 @@ function tampilkan_komentar($parent_id, $komentar, $book_id, $liked_comments, $d
 
     <script>
     document.addEventListener('DOMContentLoaded', function() {
+        // --- LOGIKA FORM BALASAN ---
         const formContainer = document.getElementById('comment-form-container');
         const originalFormParent = document.querySelector('.col-lg-9.mx-auto');
         const parentIdInput = document.getElementById('parent_id_input');
@@ -262,61 +304,132 @@ function tampilkan_komentar($parent_id, $komentar, $book_id, $liked_comments, $d
             this.style.display = 'none';
             originalFormParent.insertBefore(formContainer, discussionContainer);
         });
+        
+        // --- LOGIKA LIKE & DISLIKE ---
+        function handleLike(commentId) {
+            const commentItem = document.querySelector(`.like-btn[data-comment-id='${commentId}']`).closest('.comment-item');
+            const likeBtn = commentItem.querySelector('.like-btn');
+            const dislikeBtn = commentItem.querySelector('.dislike-btn');
+            const likeCountSpan = likeBtn.querySelector('.like-count');
+            const dislikeCountSpan = dislikeBtn.querySelector('.dislike-count');
+
+            fetch('like_handler.php', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                body: 'comment_id=' + commentId
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    likeCountSpan.textContent = data.new_like_count;
+                    dislikeCountSpan.textContent = data.new_dislike_count;
+
+                    if (data.liked) {
+                        likeBtn.classList.remove('btn-outline-primary');
+                        likeBtn.classList.add('btn-primary');
+                    } else {
+                        likeBtn.classList.remove('btn-primary');
+                        likeBtn.classList.add('btn-outline-primary');
+                    }
+                    
+                    dislikeBtn.classList.remove('btn-danger');
+                    dislikeBtn.classList.add('btn-outline-danger');
+
+                } else {
+                    alert(data.message || 'Gagal memberikan like.');
+                }
+            })
+            .catch(error => console.error('Error:', error));
+        }
+
+        function handleDislike(commentId) {
+            const commentItem = document.querySelector(`.dislike-btn[data-comment-id='${commentId}']`).closest('.comment-item');
+            const likeBtn = commentItem.querySelector('.like-btn');
+            const dislikeBtn = commentItem.querySelector('.dislike-btn');
+            const likeCountSpan = likeBtn.querySelector('.like-count');
+            const dislikeCountSpan = dislikeBtn.querySelector('.dislike-count');
+
+            fetch('dislike_handler.php', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                body: 'comment_id=' + commentId
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    likeCountSpan.textContent = data.new_like_count;
+                    dislikeCountSpan.textContent = data.new_dislike_count;
+
+                    if (data.disliked) {
+                        dislikeBtn.classList.remove('btn-outline-danger');
+                        dislikeBtn.classList.add('btn-danger');
+                    } else {
+                        dislikeBtn.classList.remove('btn-danger');
+                        dislikeBtn.classList.add('btn-outline-danger');
+                    }
+                    
+                    likeBtn.classList.remove('btn-primary');
+                    likeBtn.classList.add('btn-outline-primary');
+
+                } else {
+                    alert(data.message || 'Gagal memberikan dislike.');
+                }
+            })
+            .catch(error => console.error('Error:', error));
+        }
 
         document.querySelectorAll('.like-btn').forEach(button => {
             button.addEventListener('click', function() {
-                const commentId = this.dataset.commentId;
-                const likeCountSpan = this.querySelector('.like-count');
-
-                fetch('like_handler.php', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-                    body: 'comment_id=' + commentId
-                })
-                .then(response => response.json())
-                .then(data => {
-                    if (data.success) {
-                        likeCountSpan.textContent = data.new_like_count;
-                        if (data.liked) {
-                            this.classList.remove('btn-outline-primary');
-                            this.classList.add('btn-primary');
-                        } else {
-                            this.classList.remove('btn-primary');
-                            this.classList.add('btn-outline-primary');
-                        }
-                    } else {
-                        alert(data.message || 'Gagal memberikan like.');
-                    }
-                })
-                .catch(error => console.error('Error:', error));
+                handleLike(this.dataset.commentId);
             });
         });
         
         document.querySelectorAll('.dislike-btn').forEach(button => {
             button.addEventListener('click', function() {
-                const commentId = this.dataset.commentId;
-                const dislikeCountSpan = this.querySelector('.dislike-count');
-                fetch('dislike_handler.php', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-                    body: 'comment_id=' + commentId
-                })
-                .then(response => response.json())
-                .then(data => {
-                    if (data.success) {
-                        dislikeCountSpan.textContent = data.new_dislike_count;
-                        if (data.disliked) {
-                            this.classList.remove('btn-outline-danger');
-                            this.classList.add('btn-danger');
+                handleDislike(this.dataset.commentId);
+            });
+        });
+
+        // --- LOGIKA EDIT & HAPUS ---
+        document.querySelectorAll('.edit-btn').forEach(button => {
+            button.addEventListener('click', function(e) {
+                e.preventDefault();
+                const commentItem = this.closest('.comment-item');
+                const wrapper = commentItem.querySelector('.comment-body-wrapper');
+                
+                wrapper.querySelector('.comment-body').style.display = 'none';
+                wrapper.querySelector('.edit-form-wrapper').style.display = 'block';
+            });
+        });
+
+        document.querySelectorAll('.cancel-edit-btn').forEach(button => {
+            button.addEventListener('click', function() {
+                const wrapper = this.closest('.comment-body-wrapper');
+                wrapper.querySelector('.edit-form-wrapper').style.display = 'none';
+                wrapper.querySelector('.comment-body').style.display = 'block';
+            });
+        });
+
+        document.querySelectorAll('.delete-btn').forEach(button => {
+            button.addEventListener('click', function(e) {
+                e.preventDefault();
+                if (confirm('Apakah Anda yakin ingin menghapus komentar ini?')) {
+                    const commentId = this.dataset.commentId;
+                    fetch('user_hapus_komentar.php', { 
+                        method: 'POST',
+                        headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+                        body: 'comment_id=' + commentId
+                    })
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.success) {
+                            this.closest('.comment-wrapper').remove();
                         } else {
-                            this.classList.remove('btn-danger');
-                            this.classList.add('btn-outline-danger');
+                            alert(data.message || 'Gagal menghapus komentar.');
                         }
-                    } else {
-                        alert(data.message || 'Gagal memberikan dislike.');
-                    }
-                })
-                .catch(error => console.error('Error:', error));
+                    })
+                    .catch(error => console.error('Error:', error));
+                }
             });
         });
     });

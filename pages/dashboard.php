@@ -104,7 +104,8 @@ $books_result = $stmt_data->get_result();
         overflow: hidden; text-overflow: ellipsis; display: -webkit-box;
         -webkit-line-clamp: 2; -webkit-box-orient: vertical; min-height: 48px;
     }
-    #animated-subtitle { transition: opacity 0.5s ease-in-out; }
+    /* Efek transisi untuk judul dan subjudul */
+    #animated-title, #animated-subtitle { transition: opacity 0.5s ease-in-out; }
 
     .theme-switch-wrapper { display: flex; align-items: center; cursor: pointer; }
     .theme-switch { display: inline-block; height: 24px; position: relative; width: 48px; }
@@ -147,9 +148,9 @@ $books_result = $stmt_data->get_result();
 </head>
 <body>
   
-  <nav class="navbar navbar-expand-lg navbar-dark fixed-top">
+  <nav class="navbar navbar-expand-lg navbar-dark bg-dark fixed-top">
     <div class="container">
-      <a class="navbar-brand" href="dashboard.php"><i class="bi bi-book-half"></i> Perpus Digital</a>
+      <a class="navbar-brand" href="dashboard.php"><i class="bi bi-book-half"></i> DigiSpace</a>
       <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNavDropdown" aria-controls="navbarNavDropdown" aria-expanded="false" aria-label="Toggle navigation">
         <span class="navbar-toggler-icon"></span>
       </button>
@@ -166,7 +167,6 @@ $books_result = $stmt_data->get_result();
           </li>
           
           <?php if ($is_logged_in): ?>
-          <!-- Menu untuk user yang sudah login -->
           <li class="nav-item dropdown">
             <a class="nav-link dropdown-toggle" href="#" id="navbarDropdownMenuLink" role="button" data-bs-toggle="dropdown"><i class="bi bi-person-circle"></i> <?= $namaPengguna ?></a>
             <ul class="dropdown-menu dropdown-menu-end">
@@ -179,14 +179,13 @@ $books_result = $stmt_data->get_result();
             </ul>
           </li>
           <?php else: ?>
-          <!-- Menu untuk pengunjung (belum login) -->
           <li class="nav-item">
             <a class="nav-link btn btn-outline-light btn-sm me-2" href="../login.php">
               <i class="bi bi-box-arrow-in-right"></i> Login
             </a>
           </li>
           <li class="nav-item">
-            <a class="nav-link btn btn-light btn-sm" href="../register.html">
+            <a class="nav-link btn btn-light btn-sm" href="../register.php">
               <i class="bi bi-person-plus-fill"></i> Register
             </a>
           </li>
@@ -198,7 +197,7 @@ $books_result = $stmt_data->get_result();
 
   <header class="hero-section">
     <div class="container">
-      <h1 class="display-5 fw-bold">Perpustakaan Digital Politeknik Negeri Batam</h1>
+      <h1 class="display-5 fw-bold" id="animated-title">DigiSpace Politeknik Negeri Batam</h1>
       <p class="lead" id="animated-subtitle">Temukan sumber referensi untuk menunjang perkuliahan Anda.</p>
       <div class="col-lg-8 mx-auto mt-4">
         <form action="dashboard.php" method="GET" class="search-form">
@@ -214,7 +213,6 @@ $books_result = $stmt_data->get_result();
   <main class="container my-5">
     
     <?php if (!$is_logged_in): ?>
-    <!-- Alert untuk pengunjung yang belum login -->
     <div class="alert guest-alert alert-dismissible fade show" role="alert">
       <h5 class="alert-heading"><i class="bi bi-info-circle-fill"></i> Halo, Pengunjung!</h5>
       <p class="mb-0">Anda dapat melihat koleksi buku, tetapi untuk <strong>membaca buku lengkap</strong> dan <strong>berdiskusi</strong>, silakan <a href="../login.php">login terlebih dahulu</a>.</p>
@@ -288,6 +286,7 @@ $books_result = $stmt_data->get_result();
 
   <script>
     document.addEventListener('DOMContentLoaded', function() {
+        // --- LOGIKA MODE GELAP ---
         const themeCheckbox = document.getElementById('theme-checkbox');
         const themeIcon = document.querySelector('.theme-switch-wrapper .bi');
 
@@ -320,24 +319,48 @@ $books_result = $stmt_data->get_result();
             });
         }
 
-        const animatedText = document.getElementById('animated-subtitle');
-        if(animatedText) {
-            const textOptions = [
+        // --- LOGIKA ANIMASI TEKS ---
+
+        // Untuk Judul Utama (BARU)
+        const animatedTitle = document.getElementById('animated-title');
+        if (animatedTitle) {
+            const titleOptions = [
+                "Perpustakaan DigiSpace Polibatam",
+                "Literasi Connect", // Nama keren 1
+                "Ruang Wicara",  // Nama keren 2
+                "BahasBuku"      // Nama keren 3
+            ];
+            let titleIndex = 0;
+            function changeTitle() {
+                animatedTitle.style.opacity = 0;
+                setTimeout(() => {
+                    titleIndex = (titleIndex + 1) % titleOptions.length;
+                    animatedTitle.textContent = titleOptions[titleIndex];
+                    animatedTitle.style.opacity = 1;
+                }, 500); // Waktu untuk fade out
+            }
+            setInterval(changeTitle, 6000); // Ganti teks setiap 4 detik
+        }
+
+        // Untuk Subjudul (Lama)
+        const animatedSubtitle = document.getElementById('animated-subtitle');
+        if(animatedSubtitle) {
+            const subtitleOptions = [
                 "Temukan sumber referensi untuk menunjang perkuliahan Anda.",
                 "Jelajahi ribuan e-book dari berbagai kategori.",
                 "Bergabunglah dalam diskusi untuk setiap buku.",
                 "Pengetahuan ada di ujung jarimu."
             ];
-            let currentIndex = 0;
-            function changeText() {
-                animatedText.style.opacity = 0;
+            let subtitleIndex = 0;
+            function changeSubtitle() {
+                animatedSubtitle.style.opacity = 0;
                 setTimeout(() => {
-                    currentIndex = (currentIndex + 1) % textOptions.length;
-                    animatedText.textContent = textOptions[currentIndex];
-                    animatedText.style.opacity = 1;
+                    subtitleIndex = (subtitleIndex + 1) % subtitleOptions.length;
+                    animatedSubtitle.textContent = subtitleOptions[subtitleIndex];
+                    animatedSubtitle.style.opacity = 1;
                 }, 500);
             }
-            setInterval(changeText, 4000);
+            setInterval(changeSubtitle, 4000);
         }
     });
   </script>

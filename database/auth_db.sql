@@ -3,7 +3,7 @@
 -- https://www.phpmyadmin.net/
 --
 -- Host: 127.0.0.1
--- Waktu pembuatan: 06 Okt 2025 pada 06.34
+-- Waktu pembuatan: 07 Okt 2025 pada 06.57
 -- Versi server: 10.4.32-MariaDB
 -- Versi PHP: 8.2.12
 
@@ -72,13 +72,6 @@ CREATE TABLE `comment_dislikes` (
   `comment_id` int(11) NOT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
---
--- Dumping data untuk tabel `comment_dislikes`
---
-
-INSERT INTO `comment_dislikes` (`id`, `user_id`, `comment_id`) VALUES
-(1, 6, 26);
-
 -- --------------------------------------------------------
 
 --
@@ -96,12 +89,7 @@ CREATE TABLE `comment_likes` (
 --
 
 INSERT INTO `comment_likes` (`id`, `user_id`, `comment_id`) VALUES
-(7, 6, 20),
-(5, 6, 25),
-(4, 6, 28),
-(8, 6, 29),
-(1, 7, 20),
-(2, 7, 28);
+(10, 7, 37);
 
 -- --------------------------------------------------------
 
@@ -126,37 +114,8 @@ CREATE TABLE `diskusi` (
 --
 
 INSERT INTO `diskusi` (`id`, `buku_id`, `user_id`, `username`, `komentar`, `parent_id`, `tanggal`, `likes`, `dislikes`) VALUES
-(2, 10, 5, 'Andi Wijaya', 'halo admin', 0, '2025-08-11 04:30:28', 0, 0),
-(4, 10, 5, 'Andi Wijaya', 'mantap', 0, '2025-09-11 03:59:50', 0, 0),
-(5, 4, 4, 'admin_utama', 'HALO SAYA ADMIN\r\n', 0, '2025-09-22 09:12:11', 0, 0),
-(7, 2, 5, 'Andi Wijaya', 'kommputer keren', 0, '2025-09-26 03:58:21', 0, 0),
-(8, 10, 4, 'admin_utama', 'halo semua aku admin', 0, '2025-09-29 05:48:21', 0, 0),
-(10, 10, 4, 'admin_utama', 'mantap makasih', 2, '2025-09-29 05:55:50', 0, 0),
-(11, 5, 4, 'admin_utama', 'halo namaku edu\r\n', 0, '2025-09-29 05:59:24', 0, 0),
-(12, 5, 4, 'admin_utama', 'halo juga namaku edward', 11, '2025-09-29 05:59:36', 0, 0),
-(13, 2, 4, 'admin_utama', 'oke\r\n', 7, '2025-09-29 08:49:10', 0, 0),
-(15, 104, 4, 'admin_utama', 'sepsi lah', 0, '2025-10-01 09:08:27', 0, 0),
-(16, 104, 4, 'admin_utama', 'p', 0, '2025-10-01 09:09:20', 0, 0),
-(17, 106, 6, 'EDU', 'Robot yang keren dan penuh semangat😊', 0, '2025-10-02 02:11:18', 0, 0),
-(18, 103, 6, 'EDU', 'halo aku edu', 0, '2025-10-02 02:29:26', 0, 0),
-(19, 106, 8, 'josep', 'keren edu', 17, '2025-10-02 02:38:03', 0, 0),
-(20, 109, 9, 'santi', 'hai', 0, '2025-10-02 03:40:45', 2, 0),
-(21, 10, 6, 'EDU', 'hai', 14, '2025-10-02 03:55:18', 0, 0),
-(22, 10, 6, 'EDU', 'hai', 21, '2025-10-02 03:55:25', 0, 0),
-(23, 10, 6, 'EDU', 'hai\r\n', 22, '2025-10-02 03:55:34', 0, 0),
-(24, 10, 6, 'EDU', 'p', 23, '2025-10-02 03:59:18', 0, 0),
-(25, 109, 7, 'Admin', 'a', 20, '2025-10-02 03:59:50', 1, 0),
-(26, 109, 7, 'Admin', 'a', 25, '2025-10-02 03:59:54', 0, 1),
-(27, 10, 7, 'Admin', 'pp', 10, '2025-10-02 04:03:28', 0, 0),
-(28, 109, 7, 'Admin', 'halo aku admin sekarang', 0, '2025-10-03 04:20:01', 2, 0),
-(29, 109, 6, 'EDU', 'halo', 0, '2025-10-03 04:25:39', 1, 0),
-(30, 109, 6, 'EDU', 'mantap', 28, '2025-10-03 04:32:16', 0, 0),
-(31, 109, 6, 'EDU', 'halo', 0, '2025-10-03 06:29:23', 0, 0),
-(32, 109, 6, 'EDU', 'halo namaku edward', 30, '2025-10-03 06:35:27', 0, 0),
-(33, 10, 6, 'EDU', 'hai', 4, '2025-10-03 06:49:51', 0, 0),
-(34, 109, 6, 'EDU', 'oi', 28, '2025-10-03 06:57:18', 0, 0),
-(35, 109, 7, 'Admin', 'hai', 0, '2025-10-03 07:24:39', 0, 0),
-(36, 109, 6, 'EDU', 'halo pendapatmu sangat berguna terimakassih ya', 25, '2025-10-06 02:50:42', 0, 0);
+(37, 109, 7, 'Admin', 'halo', 0, '2025-10-07 04:56:17', 1, 0),
+(38, 109, 7, 'Admin', 'iya halo', 37, '2025-10-07 04:56:24', 0, 0);
 
 -- --------------------------------------------------------
 
@@ -190,7 +149,6 @@ INSERT INTO `mahasiswa_resmi` (`nim`, `nama_lengkap`) VALUES
 
 CREATE TABLE `users` (
   `id` int(11) NOT NULL,
-  `name` varchar(100) DEFAULT NULL,
   `username` varchar(100) NOT NULL,
   `email` varchar(100) NOT NULL,
   `nim` varchar(20) DEFAULT NULL,
@@ -203,13 +161,13 @@ CREATE TABLE `users` (
 -- Dumping data untuk tabel `users`
 --
 
-INSERT INTO `users` (`id`, `name`, `username`, `email`, `nim`, `password`, `role`, `avatar_seed`) VALUES
-(2, NULL, 'Budi Santoso', 'nelsonmeylina@gmail.com', '3312301001', '$2y$10$Tx2duiM4Pz/fHHJI5aOMheNef1KrK8QnizeP/N0TJGjgY5n8ks.3.', 'user', '503a2402c2460e035c7cd3ce31f84f9307b7e51b6c6f60b1b66723bc0ea9f641'),
-(4, NULL, 'admin_utama', 'admin2@gmail.com', NULL, '$2y$10$vauZmBosJvPFVtAgVxSyXON10lQ0V/MxqPD/MfbaFSUXC6VuOuODi', 'admin', '801b9544c2318d06763ece80301da521d819f90bb2f0cb8f007ac5a73b36911e'),
-(5, NULL, 'Andi Wijaya', 'andi@gmail.com', '3312301003', '$2y$10$844riWtfKQ/yzlpzuiJFKuKsJTHqrMQfohhc07TmX0lcXqiTVobUe', 'user', 'dcb6d4c36d5bfdad726264f385e02de8c783f83a8c1ef173b6346f0dc6ee6963'),
-(6, NULL, 'EDU', 'edumail@gmail.com', '123456789', '$2y$10$gFgC2P3JvLcAHzKc5ROcqewwtUAPFpPPOvE4Re5U36yoviDNdBDd.', 'user', '0dd477424fd82bf30f582fc7300000d94a6937b7bd82522f16f0763406f476b8'),
-(7, NULL, 'Admin', 'admin@gmail.com', 'N/A', '$2y$10$JGkJRxwg6Jefi7deJRo.MOqT.qWKmIStFkvxAfaM3UUdf2sQwsCJa', 'admin', '31d04a00006967cb860616af853232491da85448e05a87c42d3d1ac5691eddef'),
-(9, NULL, 'santi', 'santi@gmail.com', '1111', '$2y$10$YHU8jT0BNL752PAuJZg6l.hNeN1PFAIK8eCEo40BcNZbDQWdJWvQy', 'user', '48671e288b1591efe62619bb7871f40adb3a412e4f049a8f07d0f4997f39de7d');
+INSERT INTO `users` (`id`, `username`, `email`, `nim`, `password`, `role`, `avatar_seed`) VALUES
+(2, 'Budi Santoso', 'nelsonmeylina@gmail.com', '3312301001', '$2y$10$Tx2duiM4Pz/fHHJI5aOMheNef1KrK8QnizeP/N0TJGjgY5n8ks.3.', 'user', '503a2402c2460e035c7cd3ce31f84f9307b7e51b6c6f60b1b66723bc0ea9f641'),
+(4, 'admin_utama', 'admin2@gmail.com', NULL, '$2y$10$vauZmBosJvPFVtAgVxSyXON10lQ0V/MxqPD/MfbaFSUXC6VuOuODi', 'admin', '801b9544c2318d06763ece80301da521d819f90bb2f0cb8f007ac5a73b36911e'),
+(5, 'Andi Wijaya', 'andi@gmail.com', '3312301003', '$2y$10$844riWtfKQ/yzlpzuiJFKuKsJTHqrMQfohhc07TmX0lcXqiTVobUe', 'user', 'dcb6d4c36d5bfdad726264f385e02de8c783f83a8c1ef173b6346f0dc6ee6963'),
+(6, 'EDU', 'edumail@gmail.com', '123456789', '$2y$10$gFgC2P3JvLcAHzKc5ROcqewwtUAPFpPPOvE4Re5U36yoviDNdBDd.', 'user', '0dd477424fd82bf30f582fc7300000d94a6937b7bd82522f16f0763406f476b8'),
+(7, 'Admin', 'admin@gmail.com', 'N/A', '$2y$10$JGkJRxwg6Jefi7deJRo.MOqT.qWKmIStFkvxAfaM3UUdf2sQwsCJa', 'admin', '31d04a00006967cb860616af853232491da85448e05a87c42d3d1ac5691eddef'),
+(9, 'santi', 'santi@gmail.com', '1111', '$2y$10$YHU8jT0BNL752PAuJZg6l.hNeN1PFAIK8eCEo40BcNZbDQWdJWvQy', 'user', '48671e288b1591efe62619bb7871f40adb3a412e4f049a8f07d0f4997f39de7d');
 
 --
 -- Indexes for dumped tables
@@ -226,14 +184,16 @@ ALTER TABLE `buku`
 --
 ALTER TABLE `comment_dislikes`
   ADD PRIMARY KEY (`id`),
-  ADD UNIQUE KEY `user_comment_dislike` (`user_id`,`comment_id`);
+  ADD UNIQUE KEY `user_comment_dislike` (`user_id`,`comment_id`),
+  ADD KEY `comment_id` (`comment_id`);
 
 --
 -- Indeks untuk tabel `comment_likes`
 --
 ALTER TABLE `comment_likes`
   ADD PRIMARY KEY (`id`),
-  ADD UNIQUE KEY `user_comment` (`user_id`,`comment_id`);
+  ADD UNIQUE KEY `user_comment_like` (`user_id`,`comment_id`),
+  ADD KEY `comment_id` (`comment_id`);
 
 --
 -- Indeks untuk tabel `diskusi`
@@ -255,6 +215,7 @@ ALTER TABLE `mahasiswa_resmi`
 ALTER TABLE `users`
   ADD PRIMARY KEY (`id`),
   ADD UNIQUE KEY `email` (`email`),
+  ADD UNIQUE KEY `username` (`username`),
   ADD UNIQUE KEY `nim` (`nim`);
 
 --
@@ -271,25 +232,50 @@ ALTER TABLE `buku`
 -- AUTO_INCREMENT untuk tabel `comment_dislikes`
 --
 ALTER TABLE `comment_dislikes`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=2;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=3;
 
 --
 -- AUTO_INCREMENT untuk tabel `comment_likes`
 --
 ALTER TABLE `comment_likes`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=9;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=11;
 
 --
 -- AUTO_INCREMENT untuk tabel `diskusi`
 --
 ALTER TABLE `diskusi`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=37;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=39;
 
 --
 -- AUTO_INCREMENT untuk tabel `users`
 --
 ALTER TABLE `users`
   MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=10;
+
+--
+-- Ketidakleluasaan untuk tabel pelimpahan (Dumped Tables)
+--
+
+--
+-- Ketidakleluasaan untuk tabel `comment_dislikes`
+--
+ALTER TABLE `comment_dislikes`
+  ADD CONSTRAINT `comment_dislikes_ibfk_1` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE CASCADE ON UPDATE CASCADE,
+  ADD CONSTRAINT `comment_dislikes_ibfk_2` FOREIGN KEY (`comment_id`) REFERENCES `diskusi` (`id`) ON DELETE CASCADE ON UPDATE CASCADE;
+
+--
+-- Ketidakleluasaan untuk tabel `comment_likes`
+--
+ALTER TABLE `comment_likes`
+  ADD CONSTRAINT `comment_likes_ibfk_1` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE CASCADE ON UPDATE CASCADE,
+  ADD CONSTRAINT `comment_likes_ibfk_2` FOREIGN KEY (`comment_id`) REFERENCES `diskusi` (`id`) ON DELETE CASCADE ON UPDATE CASCADE;
+
+--
+-- Ketidakleluasaan untuk tabel `diskusi`
+--
+ALTER TABLE `diskusi`
+  ADD CONSTRAINT `diskusi_ibfk_1` FOREIGN KEY (`buku_id`) REFERENCES `buku` (`id`) ON DELETE CASCADE ON UPDATE CASCADE,
+  ADD CONSTRAINT `diskusi_ibfk_2` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE CASCADE ON UPDATE CASCADE;
 COMMIT;
 
 /*!40101 SET CHARACTER_SET_CLIENT=@OLD_CHARACTER_SET_CLIENT */;

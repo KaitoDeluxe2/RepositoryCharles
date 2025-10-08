@@ -10,182 +10,264 @@ if (!isset($_SESSION['user_id'])) {
 
 $user_id = $_SESSION['user_id'];
 $message = "";
-$message_type = "success"; // Tipe pesan default
+$message_type = "success";
 
-// Logika untuk memproses update profil saat form disubmit
-if ($_SERVER["REQUEST_METHOD"] == "POST") {
+// --- LOGIKA UPDATE PROFIL ---
+if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['action']) && $_POST['action'] == 'update_profile') {
     $name = $_POST['name'];
     $email = $_POST['email'];
 
     if (!empty($name) && !empty($email)) {
-        $stmt = $conn->prepare("UPDATE users SET username = ?, email = ? WHERE id = ?");
-        $stmt->bind_param("ssi", $name, $email, $user_id);
-
-        if ($stmt->execute()) {
-            $_SESSION['username'] = $name;
-            $_SESSION['email'] = $email;
-            $message = "Perubahan berhasil disimpan!";
-            $message_type = "success";
-        } else {
-            $message = "Error: Gagal menyimpan perubahan. Mungkin email sudah digunakan.";
+        $stmt_check = $conn->prepare("SELECT id FROM users WHERE email = ? AND id != ?");
+        $stmt_check->bind_param("si", $email, $user_id);
+        $stmt_check->execute();
+        if ($stmt_check->get_result()->num_rows > 0) {
+            $message = "Error: Email tersebut sudah digunakan oleh akun lain.";
             $message_type = "danger";
+        } else {
+            $stmt_update = $conn->prepare("UPDATE users SET username = ?, email = ? WHERE id = ?");
+            $stmt_update->bind_param("ssi", $name, $email, $user_id);
+
+            if ($stmt_update->execute()) {
+                $_SESSION['username'] = $name;
+                $_SESSION['email'] = $email;
+                $message = "Perubahan berhasil disimpan!";
+                $message_type = "success";
+            } else {
+                $message = "Error: Gagal menyimpan perubahan.";
+                $message_type = "danger";
+            }
+            $stmt_update->close();
         }
-        $stmt->close();
+        $stmt_check->close();
     } else {
         $message = "Error: Nama Pengguna dan Email tidak boleh kosong.";
         $message_type = "danger";
     }
 }
 
-// Ambil data terbaru dari session untuk ditampilkan
-$current_name = htmlspecialchars($_SESSION['username']);
-$current_email = htmlspecialchars($_SESSION['email']);
-$current_nim = htmlspecialchars($_SESSION['nim'] ?? 'N/A');
-$current_role = $_SESSION['role'];
+// --- AMBIL DATA PENGGUNA & STATISTIK ---
+// Ambil data lengkap pengguna dari database, termasuk tanggal bergabung
+$stmt_user = $conn->prepare("SELECT username, email, nim, role, avatar_seed, bergabung_sejak FROM users WHERE id = ?");
+$stmt_user->bind_param("i", $user_id);
+$stmt_user->execute();
+$user_data = $stmt_user->get_result()->fetch_assoc();
+$stmt_user->close();
+
+$current_name = htmlspecialchars($user_data['username']);
+$current_email = htmlspecialchars($user_data['email']);
+$current_nim = htmlspecialchars($user_data['nim'] ?? 'N/A');
+$current_role = $user_data['role'];
+$avatar_seed = $user_data['avatar_seed'];
+$tanggal_bergabung = date('d M Y', strtotime($user_data['bergabung_sejak']));
+
+// Statistik: Hitung jumlah total komentar
+$stmt_diskusi = $conn->prepare("SELECT COUNT(id) as total_diskusi FROM diskusi WHERE user_id = ?");
+$stmt_diskusi->bind_param("i", $user_id);
+$stmt_diskusi->execute();
+$total_diskusi = $stmt_diskusi->get_result()->fetch_assoc()['total_diskusi'];
+$stmt_diskusi->close();
+
+// Statistik: Hitung jumlah total suka yang diterima
+$stmt_likes = $conn->prepare("SELECT SUM(likes) as total_suka FROM diskusi WHERE user_id = ?");
+$stmt_likes->bind_param("i", $user_id);
+$stmt_likes->execute();
+$total_suka = $stmt_likes->get_result()->fetch_assoc()['total_suka'] ?? 0;
+$stmt_likes->close();
+
+
+// --- LOGIKA PAGINASI UNTUK AKTIVITAS ---
+$item_per_halaman = 5;
+$halaman_aktif = isset($_GET['page']) && is_numeric($_GET['page']) ? (int)$_GET['page'] : 1;
+$offset = ($halaman_aktif - 1) * $item_per_halaman;
+$total_halaman = ceil($total_diskusi / $item_per_halaman);
+
+// Aktivitas: Ambil komentar terakhir dari pengguna sesuai halaman
+$stmt_activity = $conn->prepare(
+    "SELECT d.komentar, d.tanggal, b.judul as judul_buku, b.id as buku_id 
+     FROM diskusi d 
+     JOIN buku b ON d.buku_id = b.id 
+     WHERE d.user_id = ? 
+     ORDER BY d.tanggal DESC 
+     LIMIT ? OFFSET ?"
+);
+$stmt_activity->bind_param("iii", $user_id, $item_per_halaman, $offset);
+$stmt_activity->execute();
+$activities = $stmt_activity->get_result();
+$stmt_activity->close();
 
 $conn->close();
 ?>
 <!DOCTYPE html>
 <html lang="id">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Pengaturan Akun - <?= $current_name ?></title>
-  <link href="../css/bootstrap.min.css" rel="stylesheet">
-  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
-  
-  <script>
-      (function() {
-          const theme = localStorage.getItem('theme');
-          if (theme === 'dark') {
-              document.documentElement.classList.add('dark-mode');
-          }
-      })();
-  </script>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Profil <?= $current_name ?></title>
+    <link href="../css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+    
+    <script>
+        (function() {
+            const theme = localStorage.getItem('theme');
+            if (theme === 'dark') {
+                document.documentElement.classList.add('dark-mode');
+            }
+        })();
+    </script>
 
-  <style>
-    body {
-        min-height: 100vh;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        background-image: url('../Gambar/PerpusGambar.png');
-        background-size: cover;
-        background-position: center;
-        position: relative;
-    }
-    body::before {
-        content: '';
-        position: absolute;
-        top: 0; left: 0; right: 0; bottom: 0;
-        background-color: rgba(0, 0, 0, 0.3); /* Overlay default (sedikit gelap) */
-        z-index: 1;
-        transition: background-color 0.3s ease;
-    }
-    .profile-card {
-        position: relative;
-        z-index: 2;
-        background-color: rgba(255, 255, 255, 0.9);
-        backdrop-filter: blur(10px);
-        -webkit-backdrop-filter: blur(10px);
-        padding: 2.5rem;
-        border-radius: 1rem;
-        box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.37);
-        border: 1px solid rgba(255, 255, 255, 0.18);
-        width: 100%;
-        max-width: 500px;
-    }
-    .profile-avatar {
-        width: 100px; height: 100px; border-radius: 50%;
-        background-color: #0d6efd; color: white;
-        display: flex; align-items: center; justify-content: center;
-        font-size: 3rem; font-weight: bold;
-        margin: 0 auto 1rem auto;
-        box-shadow: 0 4px 15px rgba(13, 110, 253, 0.4);
-        overflow: hidden;
-    }
-    .form-control-lg { font-size: 1rem; padding: 0.75rem 1rem; }
-    .btn-lg { padding: 0.75rem 1rem; font-size: 1.05rem; }
-
-    /* --- PERBAIKAN CSS DARK MODE --- */
-    html.dark-mode body::before {
-        background-color: rgba(0, 0, 0, 0.6); /* Overlay dibuat lebih gelap */
-    }
-    html.dark-mode .profile-card {
-        background-color: rgba(36, 37, 38, 0.85); /* Kartu menjadi gelap transparan */
-        border: 1px solid rgba(255, 255, 255, 0.1);
-    }
-    html.dark-mode h2,
-    html.dark-mode .form-label {
-        color: #e4e6eb;
-    }
-    html.dark-mode .text-muted {
-        color: #b0b3b8 !important;
-    }
-    html.dark-mode .form-control {
-        background-color: #3a3b3c;
-        color: #e4e6eb;
-        border-color: #4a4a4d;
-    }
-    html.dark-mode .input-group-text {
-        background-color: #3a3b3c;
-        border-color: #4a4a4d;
-        color: #e4e6eb;
-    }
-    html.dark-mode .btn-outline-secondary {
-        color: #e4e6eb;
-        border-color: #6c757d;
-    }
-    html.dark-mode .btn-outline-secondary:hover {
-        background-color: #6c757d;
-        color: white;
-    }
-  </style>
+    <style>
+        /* ... CSS Anda yang lain tetap sama ... */
+        body { background-color: #f0f2f5; }
+        .profile-header { background-color: #fff; padding: 2.5rem; border-radius: 1rem; box-shadow: 0 4px 20px rgba(0,0,0,0.05); }
+        .profile-avatar { width: 120px; height: 120px; border-radius: 50%; box-shadow: 0 4px 15px rgba(0,0,0,0.1); overflow: hidden; }
+        .stat-item { text-align: center; }
+        .stat-item .stat-count { font-size: 1.5rem; font-weight: 700; }
+        .stat-item .stat-label { font-size: 0.9rem; color: #6c757d; }
+        .activity-feed .list-group-item { border-left-width: 4px; border-left-color: #0d6efd; }
+        html.dark-mode body { background-color: #18191a; color: #e4e6eb; }
+        html.dark-mode .profile-header, html.dark-mode .card, html.dark-mode .nav-tabs .nav-link { background-color: #242526; border-color: #3a3b3c; }
+        html.dark-mode h2, html.dark-mode h4 { color: #e4e6eb; }
+        html.dark-mode .text-muted, html.dark-mode .stat-label { color: #b0b3b8 !important; }
+        html.dark-mode .nav-tabs .nav-link { color: #b0b3b8; }
+        html.dark-mode .nav-tabs .nav-link.active { color: #e4e6eb; background-color: #3a3b3c; border-bottom-color: #3a3b3c; }
+        html.dark-mode .list-group-item { background-color: #3a3b3c; border-color: #4a4a4d; }
+        html.dark-mode .form-control { background-color: #3a3b3c; color: #e4e6eb; border-color: #4a4a4d; }
+        html.dark-mode .btn-outline-secondary { color: #e4e6eb; border-color: #6c757d; }
+        html.dark-mode .btn-outline-secondary:hover { background-color: #6c757d; color: #fff; }
+        html.dark-mode .form-label { color: #b0b3b8; }
+        html.dark-mode .pagination .page-link { background-color: #242526; border-color: #3a3b3c; color: #0d6efd; }
+        html.dark-mode .pagination .page-item.disabled .page-link { background-color: #3a3b3c; color: #6c757d; }
+        html.dark-mode .pagination .page-item.active .page-link { background-color: #0d6efd; border-color: #0d6efd; }
+    </style>
 </head>
 <body>
-  <div class="profile-card">
-    <?php if ($message): ?>
-      <div class="alert alert-<?= $message_type ?> alert-dismissible fade show"><?= $message ?><button type="button" class="btn-close" data-bs-dismiss="alert"></button></div>
-    <?php endif; ?>
-    
-    <div class="mb-4 text-center">
-      <div class="profile-avatar">
-          <?php if (isset($_SESSION['avatar_seed']) && !empty($_SESSION['avatar_seed'])): ?>
-              <img src="<?= "https://api.dicebear.com/8.x/croodles/svg?seed=" . urlencode($_SESSION['avatar_seed']) ?>" alt="Avatar Pengguna" style="width: 100%; height: 100%; border-radius: 50%;">
-          <?php else: ?>
-              <?= strtoupper(substr($current_name, 0, 1)) ?>
-          <?php endif; ?>
-      </div>
-      <h2 class="mb-0 fw-bold"><?= $current_name ?></h2>
-      <p class="text-muted mb-1"><?= $current_email ?></p>
-      
-      <?php if ($current_role !== 'admin' && $current_nim !== 'N/A'): ?>
-        <p class="text-muted">NIM: <?= $current_nim ?></p>
-      <?php endif; ?>
-
+<div class="container py-5">
+    <div class="col-lg-9 mx-auto">
+        <div class="mb-4">
+            <a href="dashboard.php" class="btn btn-outline-secondary"><i class="bi bi-arrow-left"></i> Kembali ke Dashboard</a>
+        </div>
+        <div class="profile-header mb-4">
+            <div class="row align-items-center">
+                <div class="col-md-3 text-center">
+                    <img src="https://api.dicebear.com/8.x/croodles/svg?seed=<?= urlencode($avatar_seed) ?>" alt="Avatar Pengguna" class="profile-avatar">
+                </div>
+                <div class="col-md-9">
+                    <h2 class="fw-bold mb-1"><?= $current_name ?></h2>
+                    <p class="text-muted mb-2"><?= $current_email ?></p>
+                    <?php if ($current_role !== 'admin' && $current_nim !== 'N/A'): ?>
+                        <p class="text-muted small">NIM: <?= $current_nim ?></p>
+                    <?php endif; ?>
+                    <hr>
+                    <div class="row">
+                        <div class="col-4 stat-item">
+                            <div class="stat-count"><?= $total_diskusi ?></div>
+                            <div class="stat-label">Diskusi</div>
+                        </div>
+                        <div class="col-4 stat-item">
+                            <div class="stat-count"><?= $total_suka ?></div>
+                            <div class="stat-label">Jumlah Suka</div>
+                        </div>
+                        <div class="col-4 stat-item">
+                            <div class="stat-count"><?= $tanggal_bergabung ?></div>
+                            <div class="stat-label">Bergabung</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <ul class="nav nav-tabs nav-fill mb-4" id="profileTab" role="tablist">
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="activity-tab" data-bs-toggle="tab" data-bs-target="#activity" type="button" role="tab">Aktivitas Diskusi</button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="settings-tab" data-bs-toggle="tab" data-bs-target="#settings" type="button" role="tab">Pengaturan Akun</button>
+            </li>
+        </ul>
+        <div class="tab-content" id="profileTabContent">
+            <div class="tab-pane fade" id="activity" role="tabpanel">
+                <div class="card">
+                    <div class="card-body">
+                        <h4 class="card-title mb-4">Aktivitas Diskusi Terakhir</h4>
+                        <div class="activity-feed">
+                            <?php if ($activities->num_rows > 0): ?>
+                                <ul class="list-group list-group-flush">
+                                <?php while($act = $activities->fetch_assoc()): ?>
+                                    <li class="list-group-item mb-3">
+                                        <p class="mb-1">Anda berkomentar: "<i><?= htmlspecialchars(substr($act['komentar'], 0, 100)) . (strlen($act['komentar']) > 100 ? '...' : '') ?></i>"</p>
+                                        <small class="text-muted">
+                                            Pada buku <a href="detail_buku.php?id=<?= $act['buku_id'] ?>"><?= htmlspecialchars($act['judul_buku']) ?></a>
+                                            - <?= date('d M Y, H:i', strtotime($act['tanggal'])) ?>
+                                        </small>
+                                    </li>
+                                <?php endwhile; ?>
+                                </ul>
+                            <?php else: ?>
+                                <p class="text-center text-muted">Belum ada aktivitas diskusi.</p>
+                            <?php endif; ?>
+                        </div>
+                        <?php if ($total_halaman > 1): ?>
+                        <nav aria-label="Navigasi Aktivitas" class="mt-4">
+                            <ul class="pagination justify-content-center">
+                                <li class="page-item <?= ($halaman_aktif <= 1) ? 'disabled' : '' ?>">
+                                    <a class="page-link" href="?page=<?= $halaman_aktif - 1 ?>">Sebelumnya</a>
+                                </li>
+                                <li class="page-item <?= ($halaman_aktif >= $total_halaman) ? 'disabled' : '' ?>">
+                                    <a class="page-link" href="?page=<?= $halaman_aktif + 1 ?>">Selanjutnya</a>
+                                </li>
+                            </ul>
+                        </nav>
+                        <?php endif; ?>
+                    </div>
+                </div>
+            </div>
+            <div class="tab-pane fade" id="settings" role="tabpanel">
+                <div class="card">
+                    <div class="card-body">
+                        <h4 class="card-title mb-4">Edit Informasi Akun</h4>
+                        <?php if ($message): ?>
+                            <div class="alert alert-<?= $message_type ?>"><?= $message ?></div>
+                        <?php endif; ?>
+                        <form action="akun.php?tab=settings" method="POST" autocomplete="off">
+                            <input type="hidden" name="action" value="update_profile">
+                            <div class="mb-3">
+                                <label for="name" class="form-label">Nama Pengguna</label>
+                                <input type="text" class="form-control" id="name" name="name" value="<?= $current_name ?>" required>
+                            </div>
+                            <div class="mb-3">
+                                <label for="email" class="form-label">Alamat Email</label>
+                                <input type="email" class="form-control" id="email" name="email" value="<?= $current_email ?>" required>
+                            </div>
+                            <hr>
+                            <div class="d-flex justify-content-end">
+                                <button type="submit" class="btn btn-primary"><i class="bi bi-save-fill me-2"></i>Simpan Perubahan</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
     </div>
+</div>
 
-    <form action="akun.php" method="POST" autocomplete="off">
-      <div class="mb-3">
-        <label for="name" class="form-label fw-bold">Nama Pengguna</label>
-        <div class="input-group">
-            <span class="input-group-text"><i class="bi bi-person-fill"></i></span>
-            <input type="text" class="form-control form-control-lg" id="name" name="name" value="<?= $current_name ?>" required>
-        </div>
-      </div>
-      <div class="mb-4">
-        <label for="email" class="form-label fw-bold">Alamat Email</label>
-        <div class="input-group">
-            <span class="input-group-text"><i class="bi bi-envelope-fill"></i></span>
-            <input type="email" class="form-control form-control-lg" id="email" name="email" value="<?= $current_email ?>" required>
-        </div>
-      </div>
-      <div class="d-grid gap-2">
-        <button type="submit" class="btn btn-primary btn-lg"><i class="bi bi-save-fill me-2"></i>Simpan Perubahan</button>
-        <a href="dashboard.php" class="btn btn-outline-secondary">Kembali ke Dashboard</a>
-      </div>
-    </form>
-  </div>
-  <script src="../js/bootstrap.bundle.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const urlParams = new URLSearchParams(window.location.search);
+        const activeTab = urlParams.get('tab');
+        const defaultTab = 'activity';
+        const tabToActivate = activeTab || defaultTab;
+        document.querySelectorAll('#profileTab .nav-link').forEach(tab => tab.classList.remove('active'));
+        document.querySelectorAll('#profileTabContent .tab-pane').forEach(pane => {
+            pane.classList.remove('active', 'show');
+        });
+        const tabElement = document.getElementById(tabToActivate + '-tab');
+        const paneElement = document.getElementById(tabToActivate);
+        if (tabElement && paneElement) {
+            tabElement.classList.add('active');
+            paneElement.classList.add('active', 'show');
+        }
+    });
+</script>
 </body>
 </html>

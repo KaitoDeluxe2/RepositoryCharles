@@ -77,7 +77,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
                     <input type="password" name="password" class="form-control" required>
                 </div>
                 <button type="submit" class="btn btn-primary w-100">Login</button>
-                <div class="mt-3 text-center"><small>Belum punya akun? <a href="register.html">Daftar di sini</a></small></div>
+                <div class="mt-3 text-center"><small>Belum punya akun? <a href="register.php">Daftar di sini</a></small></div>
             </form>
         </div>
     </div>
