@@ -5,7 +5,7 @@ include '../includes/db.php';
 $is_logged_in = isset($_SESSION['user_id']);
 $namaPengguna = $is_logged_in ? htmlspecialchars($_SESSION['username']) : 'Pengunjung';
 
-// --- KODE BARU: Query untuk Buku Populer ---
+// --- Query untuk Buku Populer ---
 $sql_popular = "
     SELECT 
         b.id, 
@@ -19,7 +19,6 @@ $sql_popular = "
     LIMIT 6";
 
 $popular_books_result = $conn->query($sql_popular);
-// --- AKHIR KODE BARU ---
 
 $search_query = isset($_GET['search']) ? trim($_GET['search']) : '';
 $is_searching = !empty($search_query);
@@ -78,7 +77,7 @@ $books_result = $stmt_data->get_result();
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>DIGISPACE</title>
+  <title>DIGISPACE Digital</title>
   <link href="../css/bootstrap.min.css" rel="stylesheet">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
   
@@ -95,9 +94,10 @@ $books_result = $stmt_data->get_result();
     body { background-color: #f8f9fa; }
     .navbar-brand { font-weight: bold; }
     .hero-section {
-        position: relative; padding: 6rem 1rem; text-align: center; color: white;
-        background: url('../Gambar/perpuss.png') center center / cover no-repeat;
-    }
+    position: relative; padding: 6rem 1rem; text-align: center; color: white;
+    background: url('../Gambar/perpuss.png') center center / cover no-repeat;
+    transition: background-image 1.5s ease-in-out;
+}
     .hero-section::before {
         content: ''; position: absolute; top: 0; left: 0; right: 0; bottom: 0;
         background-color: rgba(0, 0, 0, 0.5); 
@@ -136,11 +136,10 @@ $books_result = $stmt_data->get_result();
         box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
     }
     .guest-alert a { color: #fff; text-decoration: underline; font-weight: bold; }
-
     .rating-stars { color: #ffc107; }
 
     html.dark-mode body { background-color: #18191a; color: #e4e6eb; }
-    html.dark-mode .bg-white, html.dark-mode .card, html.dark-mode .bg-light, html.dark-mode .dropdown-menu { background-color: #242526 !important; color: #e4e6eb; border-color: #3a3b3c !important; }
+    html.dark-mode .bg-white, html.dark-mode .card, html.dark-mode .bg-light, html.dark-mode .dropdown-menu, html.dark-mode footer { background-color: #242526 !important; color: #e4e6eb; border-color: #3a3b3c !important; }
     html.dark-mode .navbar-dark { background-color: rgba(33, 37, 41, 0.85) !important; backdrop-filter: blur(10px); }
     html.dark-mode h1, html.dark-mode h2, html.dark-mode h3, html.dark-mode h4, html.dark-mode h5, html.dark-mode h6, html.dark-mode .book-title a { color: #e4e6eb; }
     html.dark-mode .text-muted { color: #b0b3b8 !important; }
@@ -160,9 +159,9 @@ $books_result = $stmt_data->get_result();
 </head>
 <body>
   
-  <nav class="navbar navbar-expand-lg navbar-dark bg-dark fixed-top">
+  <nav class="navbar navbar-expand-lg navbar-dark fixed-top">
     <div class="container">
-      <a class="navbar-brand" href="dashboard.php"><i class="bi bi-book-half"></i> DIGISPACE</a>
+      <a class="navbar-brand" href="dashboard.php"><i class="bi bi-book-half"></i> DigiSpace</a>
       <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNavDropdown" aria-controls="navbarNavDropdown" aria-expanded="false" aria-label="Toggle navigation">
         <span class="navbar-toggler-icon"></span>
       </button>
@@ -197,7 +196,7 @@ $books_result = $stmt_data->get_result();
             </a>
           </li>
           <li class="nav-item">
-            <a class="nav-link btn btn-light btn-sm" href="../register.html">
+            <a class="nav-link btn btn-light btn-sm text-dark" href="../register.html">
               <i class="bi bi-person-plus-fill"></i> Register
             </a>
           </li>
@@ -209,7 +208,7 @@ $books_result = $stmt_data->get_result();
 
   <header class="hero-section">
     <div class="container">
-      <h1 class="display-5 fw-bold">DIGISPACE Politeknik Negeri Batam</h1>
+      <h1 class="display-5 fw-bold">DigiSpace Politeknik Negeri Batam</h1>
       <p class="lead" id="animated-subtitle">Temukan sumber referensi untuk menunjang perkuliahan Anda.</p>
       <div class="col-lg-8 mx-auto mt-4">
         <form action="dashboard.php" method="GET" class="search-form">
@@ -263,6 +262,7 @@ $books_result = $stmt_data->get_result();
         </div>
     </section>
     <?php endif; ?>
+
     <section class="book-collection">
       <?php if ($is_searching): ?>
         <h2 class="section-title">Hasil pencarian untuk: "<?= htmlspecialchars($search_query) ?>"</h2>
@@ -321,38 +321,30 @@ $books_result = $stmt_data->get_result();
     <?php endif; ?>
   </main>
 
-  <footer class="text-center py-4 mt-5 bg-light border-top">
-    <p class="mb-0">&copy; 2025 DIGISPACE Polibatam. All Rights Reserved.</p>
+  <footer class="text-center py-4 mt-5 bg-white border-top">
+    <p class="mb-0">&copy; 2025 DIGISPACE Digital Polibatam. All Rights Reserved.</p>
   </footer>
 
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
 
   <script>
     document.addEventListener('DOMContentLoaded', function() {
+        // Dark Mode Logic
         const themeCheckbox = document.getElementById('theme-checkbox');
         const themeIcon = document.querySelector('.theme-switch-wrapper .bi');
-
         function applyTheme(theme) {
             if (theme === 'dark') {
                 document.documentElement.classList.add('dark-mode');
                 if(themeCheckbox) themeCheckbox.checked = true;
-                if(themeIcon) {
-                    themeIcon.classList.remove('bi-moon-fill');
-                    themeIcon.classList.add('bi-sun-fill');
-                }
+                if(themeIcon) { themeIcon.classList.remove('bi-moon-fill'); themeIcon.classList.add('bi-sun-fill'); }
             } else {
                 document.documentElement.classList.remove('dark-mode');
                 if(themeCheckbox) themeCheckbox.checked = false;
-                if(themeIcon) {
-                    themeIcon.classList.remove('bi-sun-fill');
-                    themeIcon.classList.add('bi-moon-fill');
-                }
+                if(themeIcon) { themeIcon.classList.remove('bi-sun-fill'); themeIcon.classList.add('bi-moon-fill'); }
             }
         }
-
         const currentTheme = localStorage.getItem('theme') || 'light';
         applyTheme(currentTheme);
-
         if(themeCheckbox) {
             themeCheckbox.addEventListener('change', function() {
                 const newTheme = this.checked ? 'dark' : 'light';
@@ -361,6 +353,7 @@ $books_result = $stmt_data->get_result();
             });
         }
 
+        // Animated Subtitle Logic
         const animatedText = document.getElementById('animated-subtitle');
         if(animatedText) {
             const textOptions = [
@@ -380,9 +373,25 @@ $books_result = $stmt_data->get_result();
             }
             setInterval(changeText, 4000);
         }
+
+// Animated Background Logic
+const heroSection = document.querySelector('.hero-section');
+if (heroSection) {
+    const backgroundImages = [
+        '../Gambar/perpuss.png',
+        '../Gambar/PerpusGambar.png'
+    ];
+    let currentBgIndex = 0;
+
+    function changeBackground() {
+        // PERUBAHAN: Langsung ganti gambar tanpa mengubah opacity
+        currentBgIndex = (currentBgIndex + 1) % backgroundImages.length;
+        heroSection.style.backgroundImage = `url('${backgroundImages[currentBgIndex]}')`;
+    }
+    setInterval(changeBackground, 7000);
+}
     });
   </script>
-
 </body>
 </html>
 <?php

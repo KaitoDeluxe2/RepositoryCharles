@@ -9,6 +9,41 @@ if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'admin') {
 }
 
 // --- LOGIKA AKSI ADMIN ---
+
+// [KODE BARU] Logika untuk Edit Mahasiswa
+if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['action']) && $_POST['action'] == 'edit_mahasiswa') {
+    $nim_lama = $_POST['nim_lama'];
+    $nim_baru = $_POST['nim_baru'];
+    $nama_lengkap = $_POST['nama_lengkap'];
+
+    if (!empty($nim_lama) && !empty($nim_baru) && !empty($nama_lengkap)) {
+        $stmt = $conn->prepare("UPDATE mahasiswa_resmi SET nim = ?, nama_lengkap = ? WHERE nim = ?");
+        $stmt->bind_param("sss", $nim_baru, $nama_lengkap, $nim_lama);
+        $stmt->execute();
+        $stmt->close();
+        header("Location: index.php?status=edit_mhs_sukses#kelola-mahasiswa");
+        exit;
+    }
+}
+
+// [KODE BARU] Logika untuk Edit Pengguna
+if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['action']) && $_POST['action'] == 'edit_user') {
+    $user_id = $_POST['user_id'];
+    $username = $_POST['username'];
+    $email = $_POST['email'];
+    $nim = !empty($_POST['nim']) ? $_POST['nim'] : null; // Handle jika NIM kosong
+
+    if (!empty($user_id) && !empty($username) && !empty($email)) {
+        $stmt = $conn->prepare("UPDATE users SET username = ?, email = ?, nim = ? WHERE id = ?");
+        $stmt->bind_param("sssi", $username, $email, $nim, $user_id);
+        $stmt->execute();
+        $stmt->close();
+        header("Location: index.php?status=edit_user_sukses#kelola-akun");
+        exit;
+    }
+}
+
+// Logika Tambah Buku
 if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['action']) && $_POST['action'] == 'add_book') {
     $judul = $_POST['judul'];
     $penulis = $_POST['penulis'];
@@ -31,6 +66,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['action']) && $_POST['a
     exit;
 }
 
+// Logika Hapus Buku
 if ($_SERVER["REQUEST_METHOD"] == "GET" && isset($_GET['action']) && $_GET['action'] == 'delete_book') {
     $id = $_GET['id'];
     $stmt = $conn->prepare("SELECT cover_path, file_path FROM buku WHERE id = ?");
@@ -50,6 +86,7 @@ if ($_SERVER["REQUEST_METHOD"] == "GET" && isset($_GET['action']) && $_GET['acti
     exit;
 }
 
+// Logika Tambah Mahasiswa
 if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['action']) && $_POST['action'] == 'add_mahasiswa') {
     $nim = $_POST['nim'];
     $nama_lengkap = $_POST['nama_lengkap'];
@@ -63,6 +100,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['action']) && $_POST['a
     }
 }
 
+// Logika Hapus Mahasiswa
 if ($_SERVER["REQUEST_METHOD"] == "GET" && isset($_GET['action']) && $_GET['action'] == 'delete_mahasiswa') {
     $nim = $_GET['nim'];
     $stmt = $conn->prepare("DELETE FROM mahasiswa_resmi WHERE nim = ?");
@@ -73,6 +111,7 @@ if ($_SERVER["REQUEST_METHOD"] == "GET" && isset($_GET['action']) && $_GET['acti
     exit;
 }
 
+// Logika Hapus User
 if ($_SERVER["REQUEST_METHOD"] == "GET" && isset($_GET['action']) && $_GET['action'] == 'delete_user') {
     $id = $_GET['id'];
     if ($id != $_SESSION['user_id']) {
@@ -85,6 +124,7 @@ if ($_SERVER["REQUEST_METHOD"] == "GET" && isset($_GET['action']) && $_GET['acti
     exit;
 }
 
+// Logika Update Role
 if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['action']) && $_POST['action'] == 'update_role') {
     $id = $_POST['user_id'];
     $role = $_POST['role'];
@@ -155,56 +195,50 @@ $users_result = $conn->query($sql_users);
             --dark-text-primary: #e4e6eb;
             --dark-text-secondary: #b0b3b8;
         }
-
         body { background-color: var(--light-bg); }
-
         .wrapper { display: flex; width: 100%; }
-
         .sidebar { width: 260px; background: #212529; color: white; position: fixed; height: 100%; padding: 1.5rem 1rem; flex-shrink: 0; }
         .sidebar .nav-link { color: #adb5bd; }
         .sidebar .nav-link:hover, .sidebar .nav-link.active { color: #fff; background-color: #495057; }
         .sidebar .sidebar-header { font-size: 1.5rem; font-weight: bold; text-align: center; margin-bottom: 2rem; }
-
         .main-content { padding: 2rem; width: calc(100% - 260px); margin-left: 260px; }
-
         .stat-card { border-radius: 0.75rem; padding: 1.5rem; display: flex; align-items: center; box-shadow: 0 4px 15px rgba(0,0,0,0.05); }
         .card-users, .card-mahasiswa, .card-buku { color: white; }
         .card-users { background: linear-gradient(135deg, #0d6efd, #0a58ca); }
         .card-mahasiswa { background: linear-gradient(135deg, #0dcaf0, #0aa3c2); }
         .card-buku { background: linear-gradient(135deg, #198754, #146c43); }
         .stat-card .icon { font-size: 2.5rem; padding: 1rem; border-radius: 50%; margin-right: 1rem; background-color: rgba(255, 255, 255, 0.2); display: flex; align-items: center; justify-content: center; }
-        
-        /* --- PERUBAHAN CSS UNTUK BORDER --- */
         .admin-card { 
             background-color: #fff; 
             border-radius: 0.75rem; 
-            box-shadow: 5 4px 15px rgba(0,0,0,0.05);
-            border: 3px solid #dee2e6; /* Border ditambahkan untuk light mode */
+            box-shadow: 0 4px 15px rgba(0,0,0,0.05);
+            border: 1px solid #dee2e6; /* Border untuk light mode */
         }
         .table-custom img { width: 45px; height: 60px; object-fit: cover; border-radius: 0.25rem; }
         .table-scroll-container { max-height: 450px; overflow-y: auto; }
         .table-scroll-container thead th { position: sticky; top: 0; z-index: 1; }
         
-        /* === KODE CSS DARK MODE === */
+        /* Dark Mode Styles */
         html.dark-mode body { background-color: var(--dark-bg); color: var(--dark-text-primary); }
         html.dark-mode .admin-card { 
             background-color: var(--dark-surface); 
-            border: 1px solid #4a4a4d; /* Warna border diubah agar lebih terlihat di dark mode */
+            border: 1px solid #4a4a4d; /* Border untuk dark mode */
         }
         html.dark-mode .card-header.bg-white { background-color: var(--dark-surface) !important; border-bottom: 1px solid var(--dark-surface-2); }
         html.dark-mode h1, html.dark-mode h2, html.dark-mode h4, html.dark-mode h5 { color: var(--dark-text-primary); }
         html.dark-mode .form-label { color: var(--dark-text-secondary); }
-        html.dark-mode .form-control, html.dark-mode .form-select { background-color: var(--dark-surface-2); color: var(--dark-text-primary); border-color: #4a4a4d; }
+        html.dark-mode .form-control, html.dark-mode .form-select, html.dark-mode .modal-content { background-color: var(--dark-surface-2); color: var(--dark-text-primary); border-color: #4a4a4d; }
         html.dark-mode .form-control:focus, html.dark-mode .form-select:focus { border-color: #0d6efd; box-shadow: 0 0 0 .25rem rgba(13,110,253,.25); }
         html.dark-mode .form-control::placeholder { color: #888; }
         html.dark-mode .input-group-text { background-color: var(--dark-surface-2); border-color: #4a4a4d; }
-        html.dark-mode hr { border-top-color: var(--dark-surface-2); }
+        html.dark-mode hr, html.dark-mode .modal-header, html.dark-mode .modal-footer { border-color: var(--dark-surface-2); }
         html.dark-mode .table { --bs-table-color: var(--dark-text-secondary); --bs-table-bg: transparent; --bs-table-border-color: var(--dark-surface-2); --bs-table-hover-bg: #323539; --bs-table-hover-color: #fff; }
         html.dark-mode .table-striped > tbody > tr:nth-of-type(odd) > * { --bs-table-accent-bg: rgba(255, 255, 255, 0.05); }
         html.dark-mode .table b, html.dark-mode .table strong { color: var(--dark-text-primary); }
         html.dark-mode .table-scroll-container thead th { background-color: #343a40; }
+        html.dark-mode .btn-close { filter: invert(1) grayscale(100%); }
 
-        /* === CSS UNTUK RESPONSIVE SEDERHANA === */
+        /* Responsive Styles */
         @media (max-width: 991.98px) {
             .wrapper { flex-direction: column; }
             .sidebar { position: static; width: 100%; height: auto; margin-bottom: 1rem; }
@@ -238,6 +272,8 @@ $users_result = $conn->query($sql_users);
                 case 'hapus_mhs_sukses': $message = '<strong>Berhasil!</strong> Data mahasiswa telah dihapus.'; break;
                 case 'update_role_sukses': $message = '<strong>Berhasil!</strong> Peran pengguna telah diperbarui.'; break;
                 case 'hapus_user_sukses': $message = '<strong>Berhasil!</strong> Akun pengguna telah dihapus.'; break;
+                case 'edit_mhs_sukses': $message = '<strong>Berhasil!</strong> Data mahasiswa telah diperbarui.'; break;
+                case 'edit_user_sukses': $message = '<strong>Berhasil!</strong> Data pengguna telah diperbarui.'; break;
             }
             if ($message) { echo '<div class="alert alert-' . $alert_type . ' alert-dismissible fade show" role="alert">' . $message . '<button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button></div>'; }
         }
@@ -281,8 +317,8 @@ $users_result = $conn->query($sql_users);
                                 <td><b><?= htmlspecialchars($row['judul']) ?></b></td>
                                 <td><?= htmlspecialchars($row['penulis']) ?></td>
                                 <td class="text-end">
-                                    <a href="edit_buku.php?id=<?= $row['id'] ?>" class="btn btn-warning btn-icon" title="Edit"><i class="bi bi-pencil-square"></i></a>
-                                    <a href="index.php?action=delete_book&id=<?= $row['id'] ?>" class="btn btn-danger btn-icon" onclick="return confirm('Yakin?')" title="Hapus"><i class="bi bi-trash3-fill"></i></a>
+                                    <a href="edit_buku.php?id=<?= $row['id'] ?>" class="btn btn-warning btn-sm" title="Edit"><i class="bi bi-pencil-square"></i> Edit Halaman</a>
+                                    <a href="index.php?action=delete_book&id=<?= $row['id'] ?>" class="btn btn-danger btn-sm" onclick="return confirm('Yakin?')" title="Hapus"><i class="bi bi-trash3-fill"></i> Hapus</a>
                                 </td>
                             </tr>
                             <?php endwhile; ?>
@@ -318,9 +354,18 @@ $users_result = $conn->query($sql_users);
                         <tbody>
                             <?php while($row = $mahasiswa_resmi_result->fetch_assoc()): ?>
                             <tr>
-                                <td><b><?= htmlspecialchars($row['nim']) ?></b></td>
-                                <td><?= htmlspecialchars($row['nama_lengkap']) ?></td>
-                                <td class="text-end"><a href="index.php?action=delete_mahasiswa&nim=<?= urlencode($row['nim']) ?>" class="btn btn-danger btn-sm" onclick="return confirm('Yakin?')">Hapus</a></td>
+                                <td data-label="NIM"><b><?= htmlspecialchars($row['nim']) ?></b></td>
+                                <td data-label="Nama"><?= htmlspecialchars($row['nama_lengkap']) ?></td>
+                                <td class="text-end">
+                                    <button class="btn btn-warning btn-sm edit-mhs-btn" 
+                                            data-bs-toggle="modal" 
+                                            data-bs-target="#editMahasiswaModal"
+                                            data-nim="<?= htmlspecialchars($row['nim']) ?>"
+                                            data-nama="<?= htmlspecialchars($row['nama_lengkap']) ?>">
+                                        <i class="bi bi-pencil-square"></i> Edit
+                                    </button>
+                                    <a href="index.php?action=delete_mahasiswa&nim=<?= urlencode($row['nim']) ?>" class="btn btn-danger btn-sm" onclick="return confirm('Yakin?')"><i class="bi bi-trash3-fill"></i> Hapus</a>
+                                </td>
                             </tr>
                             <?php endwhile; ?>
                         </tbody>
@@ -345,9 +390,9 @@ $users_result = $conn->query($sql_users);
                             <?php while($row = $users_result->fetch_assoc()): ?>
                             <tr>
                                 <td><?= $row['id'] ?></td>
-                                <td><b><?= htmlspecialchars($row['username']) ?></b></td>
-                                <td><?= htmlspecialchars($row['email']) ?></td>
-                                <td><?= htmlspecialchars($row['nim'] ?? 'N/A') ?></td>
+                                <td data-label="Username"><b><?= htmlspecialchars($row['username']) ?></b></td>
+                                <td data-label="Email"><?= htmlspecialchars($row['email']) ?></td>
+                                <td data-label="NIM"><?= htmlspecialchars($row['nim'] ?? 'N/A') ?></td>
                                 <td>
                                     <form action="index.php" method="POST" style="min-width: 100px;">
                                         <input type="hidden" name="action" value="update_role">
@@ -360,7 +405,16 @@ $users_result = $conn->query($sql_users);
                                 </td>
                                 <td class="text-end">
                                     <?php if ($row['id'] != $_SESSION['user_id']): ?>
-                                    <a href="index.php?action=delete_user&id=<?= $row['id'] ?>" class="btn btn-danger btn-sm" onclick="return confirm('Yakin?')">Hapus</a>
+                                    <button class="btn btn-warning btn-sm edit-user-btn"
+                                            data-bs-toggle="modal"
+                                            data-bs-target="#editUserModal"
+                                            data-id="<?= $row['id'] ?>"
+                                            data-username="<?= htmlspecialchars($row['username']) ?>"
+                                            data-email="<?= htmlspecialchars($row['email']) ?>"
+                                            data-nim="<?= htmlspecialchars($row['nim'] ?? '') ?>">
+                                        <i class="bi bi-pencil-square"></i> Edit
+                                    </button>
+                                    <a href="index.php?action=delete_user&id=<?= $row['id'] ?>" class="btn btn-danger btn-sm" onclick="return confirm('Yakin?')"><i class="bi bi-trash3-fill"></i> Hapus</a>
                                     <?php endif; ?>
                                 </td>
                             </tr>
@@ -373,7 +427,113 @@ $users_result = $conn->query($sql_users);
     </div>
 </div>
 
+<div class="modal fade" id="editMahasiswaModal" tabindex="-1" aria-labelledby="editMahasiswaModalLabel" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="editMahasiswaModalLabel">Edit Mahasiswa Resmi</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <form action="index.php" method="POST">
+        <div class="modal-body">
+            <input type="hidden" name="action" value="edit_mahasiswa">
+            <input type="hidden" id="edit-nim-lama" name="nim_lama">
+            <div class="mb-3">
+                <label for="edit-nim-baru" class="form-label">NIM</label>
+                <input type="text" class="form-control" id="edit-nim-baru" name="nim_baru" required>
+            </div>
+            <div class="mb-3">
+                <label for="edit-nama-lengkap" class="form-label">Nama Lengkap</label>
+                <input type="text" class="form-control" id="edit-nama-lengkap" name="nama_lengkap" required>
+            </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Batal</button>
+          <button type="submit" class="btn btn-primary">Simpan Perubahan</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<div class="modal fade" id="editUserModal" tabindex="-1" aria-labelledby="editUserModalLabel" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="editUserModalLabel">Edit Pengguna</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <form action="index.php" method="POST">
+        <div class="modal-body">
+            <input type="hidden" name="action" value="edit_user">
+            <input type="hidden" id="edit-user-id" name="user_id">
+            <div class="mb-3">
+                <label for="edit-username" class="form-label">Username</label>
+                <input type="text" class="form-control" id="edit-username" name="username" required>
+            </div>
+            <div class="mb-3">
+                <label for="edit-email" class="form-label">Email</label>
+                <input type="email" class="form-control" id="edit-email" name="email" required>
+            </div>
+            <div class="mb-3">
+                <label for="edit-nim-user" class="form-label">NIM (Opsional)</label>
+                <input type="text" class="form-control" id="edit-nim-user" name="nim">
+            </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Batal</button>
+          <button type="submit" class="btn btn-primary">Simpan Perubahan</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    // Modal Edit Mahasiswa
+    var editMahasiswaModal = document.getElementById('editMahasiswaModal');
+    if(editMahasiswaModal) {
+        editMahasiswaModal.addEventListener('show.bs.modal', function (event) {
+            var button = event.relatedTarget;
+            var nim = button.getAttribute('data-nim');
+            var nama = button.getAttribute('data-nama');
+
+            var modalNimLamaInput = editMahasiswaModal.querySelector('#edit-nim-lama');
+            var modalNimBaruInput = editMahasiswaModal.querySelector('#edit-nim-baru');
+            var modalNamaInput = editMahasiswaModal.querySelector('#edit-nama-lengkap');
+
+            modalNimLamaInput.value = nim;
+            modalNimBaruInput.value = nim;
+            modalNamaInput.value = nama;
+        });
+    }
+
+    // Modal Edit Pengguna
+    var editUserModal = document.getElementById('editUserModal');
+    if(editUserModal) {
+        editUserModal.addEventListener('show.bs.modal', function (event) {
+            var button = event.relatedTarget;
+            var id = button.getAttribute('data-id');
+            var username = button.getAttribute('data-username');
+            var email = button.getAttribute('data-email');
+            var nim = button.getAttribute('data-nim');
+
+            var modalUserIdInput = editUserModal.querySelector('#edit-user-id');
+            var modalUsernameInput = editUserModal.querySelector('#edit-username');
+            var modalEmailInput = editUserModal.querySelector('#edit-email');
+            var modalNimUserInput = editUserModal.querySelector('#edit-nim-user');
+            
+            modalUserIdInput.value = id;
+            modalUsernameInput.value = username;
+            modalEmailInput.value = email;
+            modalNimUserInput.value = nim;
+        });
+    }
+});
+</script>
 </body>
 </html>
 <?php
