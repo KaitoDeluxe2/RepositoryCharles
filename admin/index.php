@@ -174,14 +174,23 @@ $users_result = $conn->query($sql_users);
         .card-buku { background: linear-gradient(135deg, #198754, #146c43); }
         .stat-card .icon { font-size: 2.5rem; padding: 1rem; border-radius: 50%; margin-right: 1rem; background-color: rgba(255, 255, 255, 0.2); display: flex; align-items: center; justify-content: center; }
         
-        .admin-card { background-color: #fff; border-radius: 0.75rem; box-shadow: 0 4px 15px rgba(0,0,0,0.05); }
+        /* --- PERUBAHAN CSS UNTUK BORDER --- */
+        .admin-card { 
+            background-color: #fff; 
+            border-radius: 0.75rem; 
+            box-shadow: 5 4px 15px rgba(0,0,0,0.05);
+            border: 3px solid #dee2e6; /* Border ditambahkan untuk light mode */
+        }
         .table-custom img { width: 45px; height: 60px; object-fit: cover; border-radius: 0.25rem; }
         .table-scroll-container { max-height: 450px; overflow-y: auto; }
         .table-scroll-container thead th { position: sticky; top: 0; z-index: 1; }
         
         /* === KODE CSS DARK MODE === */
         html.dark-mode body { background-color: var(--dark-bg); color: var(--dark-text-primary); }
-        html.dark-mode .admin-card { background-color: var(--dark-surface); border: 1px solid var(--dark-surface-2); }
+        html.dark-mode .admin-card { 
+            background-color: var(--dark-surface); 
+            border: 1px solid #4a4a4d; /* Warna border diubah agar lebih terlihat di dark mode */
+        }
         html.dark-mode .card-header.bg-white { background-color: var(--dark-surface) !important; border-bottom: 1px solid var(--dark-surface-2); }
         html.dark-mode h1, html.dark-mode h2, html.dark-mode h4, html.dark-mode h5 { color: var(--dark-text-primary); }
         html.dark-mode .form-label { color: var(--dark-text-secondary); }

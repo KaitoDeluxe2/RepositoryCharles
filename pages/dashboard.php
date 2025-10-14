@@ -2,17 +2,29 @@
 session_start();
 include '../includes/db.php';
 
-// PERUBAHAN: Hapus pengecekan login wajib
-// Sekarang dashboard bisa diakses tanpa login
 $is_logged_in = isset($_SESSION['user_id']);
 $namaPengguna = $is_logged_in ? htmlspecialchars($_SESSION['username']) : 'Pengunjung';
+
+// --- KODE BARU: Query untuk Buku Populer ---
+$sql_popular = "
+    SELECT 
+        b.id, 
+        b.judul, 
+        b.cover_path, 
+        b.penulis,
+        (SELECT COUNT(*) FROM diskusi WHERE buku_id = b.id) AS jumlah_komentar,
+        (b.total_rating / IF(b.rating_count = 0, 1, b.rating_count)) AS avg_rating
+    FROM buku b
+    ORDER BY avg_rating DESC, jumlah_komentar DESC
+    LIMIT 6";
+
+$popular_books_result = $conn->query($sql_popular);
+// --- AKHIR KODE BARU ---
 
 $search_query = isset($_GET['search']) ? trim($_GET['search']) : '';
 $is_searching = !empty($search_query);
 
-// --- LOGIKA PAGINASI DAN PENGAMBILAN DATA (SAMA SEPERTI ASLI) ---
 $buku_per_halaman = 12;
-
 $halaman_aktif = isset($_GET['page']) && is_numeric($_GET['page']) ? (int)$_GET['page'] : 1;
 if ($halaman_aktif < 1) {
     $halaman_aktif = 1;
@@ -66,7 +78,7 @@ $books_result = $stmt_data->get_result();
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Perpustakaan Digital</title>
+  <title>DIGISPACE</title>
   <link href="../css/bootstrap.min.css" rel="stylesheet">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
   
@@ -104,8 +116,7 @@ $books_result = $stmt_data->get_result();
         overflow: hidden; text-overflow: ellipsis; display: -webkit-box;
         -webkit-line-clamp: 2; -webkit-box-orient: vertical; min-height: 48px;
     }
-    /* Efek transisi untuk judul dan subjudul */
-    #animated-title, #animated-subtitle { transition: opacity 0.5s ease-in-out; }
+    #animated-subtitle { transition: opacity 0.5s ease-in-out; }
 
     .theme-switch-wrapper { display: flex; align-items: center; cursor: pointer; }
     .theme-switch { display: inline-block; height: 24px; position: relative; width: 48px; }
@@ -118,7 +129,6 @@ $books_result = $stmt_data->get_result();
     .slider.round:before { border-radius: 50%; }
     .theme-switch-wrapper .bi { margin-left: 8px; font-size: 1.2rem; color: #fff; }
 
-    /* Alert info untuk pengunjung */
     .guest-alert { 
         background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
         color: white;
@@ -126,6 +136,8 @@ $books_result = $stmt_data->get_result();
         box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
     }
     .guest-alert a { color: #fff; text-decoration: underline; font-weight: bold; }
+
+    .rating-stars { color: #ffc107; }
 
     html.dark-mode body { background-color: #18191a; color: #e4e6eb; }
     html.dark-mode .bg-white, html.dark-mode .card, html.dark-mode .bg-light, html.dark-mode .dropdown-menu { background-color: #242526 !important; color: #e4e6eb; border-color: #3a3b3c !important; }
@@ -150,7 +162,7 @@ $books_result = $stmt_data->get_result();
   
   <nav class="navbar navbar-expand-lg navbar-dark bg-dark fixed-top">
     <div class="container">
-      <a class="navbar-brand" href="dashboard.php"><i class="bi bi-book-half"></i> DigiSpace</a>
+      <a class="navbar-brand" href="dashboard.php"><i class="bi bi-book-half"></i> DIGISPACE</a>
       <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNavDropdown" aria-controls="navbarNavDropdown" aria-expanded="false" aria-label="Toggle navigation">
         <span class="navbar-toggler-icon"></span>
       </button>
@@ -185,7 +197,7 @@ $books_result = $stmt_data->get_result();
             </a>
           </li>
           <li class="nav-item">
-            <a class="nav-link btn btn-light btn-sm" href="../register.php">
+            <a class="nav-link btn btn-light btn-sm" href="../register.html">
               <i class="bi bi-person-plus-fill"></i> Register
             </a>
           </li>
@@ -197,7 +209,7 @@ $books_result = $stmt_data->get_result();
 
   <header class="hero-section">
     <div class="container">
-      <h1 class="display-5 fw-bold" id="animated-title">DigiSpace Politeknik Negeri Batam</h1>
+      <h1 class="display-5 fw-bold">DIGISPACE Politeknik Negeri Batam</h1>
       <p class="lead" id="animated-subtitle">Temukan sumber referensi untuk menunjang perkuliahan Anda.</p>
       <div class="col-lg-8 mx-auto mt-4">
         <form action="dashboard.php" method="GET" class="search-form">
@@ -215,11 +227,42 @@ $books_result = $stmt_data->get_result();
     <?php if (!$is_logged_in): ?>
     <div class="alert guest-alert alert-dismissible fade show" role="alert">
       <h5 class="alert-heading"><i class="bi bi-info-circle-fill"></i> Halo, Pengunjung!</h5>
-      <p class="mb-0">Anda dapat melihat koleksi buku, tetapi untuk <strong>membaca buku lengkap</strong> dan <strong>berdiskusi</strong>, silakan <a href="../login.php">login terlebih dahulu</a>.</p>
+      <p class="mb-0">Anda dapat melihat koleksi buku, tetapi untuk <strong>membaca buku lengkap</strong>, <strong>memberi rating</strong>, dan <strong>berdiskusi</strong>, silakan <a href="../login.php">login terlebih dahulu</a>.</p>
       <button type="button" class="btn-close btn-close-white" data-bs-dismiss="alert" aria-label="Close"></button>
     </div>
     <?php endif; ?>
-
+    
+    <?php if ($popular_books_result->num_rows > 0): ?>
+    <section class="book-collection mb-5">
+        <h2 class="section-title">Koleksi Populer</h2>
+        <div class="row row-cols-2 row-cols-md-4 row-cols-lg-6 g-4">
+            <?php while($book = $popular_books_result->fetch_assoc()): ?>
+            <div class="col">
+                <div class="book-item text-center">
+                    <a href="detail_buku.php?id=<?= $book['id'] ?>">
+                        <div class="card shadow-sm">
+                            <img src="../<?= htmlspecialchars($book['cover_path']) ?>" class="book-cover" alt="Cover Buku">
+                        </div>
+                    </a>
+                    <h6 class="book-title">
+                        <a href="detail_buku.php?id=<?= $book['id'] ?>" class="text-decoration-none">
+                            <?= htmlspecialchars($book['judul']) ?>
+                        </a>
+                    </h6>
+                    <div class="rating-stars">
+                        <?php
+                        $rating = round($book['avg_rating']);
+                        for ($i = 0; $i < 5; $i++):
+                            echo $i < $rating ? '<i class="bi bi-star-fill"></i>' : '<i class="bi bi-star"></i>';
+                        endfor;
+                        ?>
+                    </div>
+                </div>
+            </div>
+            <?php endwhile; ?>
+        </div>
+    </section>
+    <?php endif; ?>
     <section class="book-collection">
       <?php if ($is_searching): ?>
         <h2 class="section-title">Hasil pencarian untuk: "<?= htmlspecialchars($search_query) ?>"</h2>
@@ -278,15 +321,14 @@ $books_result = $stmt_data->get_result();
     <?php endif; ?>
   </main>
 
-  <footer class="text-center py-4 mt-5 bg-white border-top">
-    <p class="mb-0">&copy; 2025 Perpustakaan Digital Polibatam. All Rights Reserved.</p>
+  <footer class="text-center py-4 mt-5 bg-light border-top">
+    <p class="mb-0">&copy; 2025 DIGISPACE Polibatam. All Rights Reserved.</p>
   </footer>
 
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
 
   <script>
     document.addEventListener('DOMContentLoaded', function() {
-        // --- LOGIKA MODE GELAP ---
         const themeCheckbox = document.getElementById('theme-checkbox');
         const themeIcon = document.querySelector('.theme-switch-wrapper .bi');
 
@@ -319,48 +361,24 @@ $books_result = $stmt_data->get_result();
             });
         }
 
-        // --- LOGIKA ANIMASI TEKS ---
-
-        // Untuk Judul Utama (BARU)
-        const animatedTitle = document.getElementById('animated-title');
-        if (animatedTitle) {
-            const titleOptions = [
-                "Perpustakaan DigiSpace Polibatam",
-                "Literasi Connect", // Nama keren 1
-                "Ruang Wicara",  // Nama keren 2
-                "BahasBuku"      // Nama keren 3
-            ];
-            let titleIndex = 0;
-            function changeTitle() {
-                animatedTitle.style.opacity = 0;
-                setTimeout(() => {
-                    titleIndex = (titleIndex + 1) % titleOptions.length;
-                    animatedTitle.textContent = titleOptions[titleIndex];
-                    animatedTitle.style.opacity = 1;
-                }, 500); // Waktu untuk fade out
-            }
-            setInterval(changeTitle, 6000); // Ganti teks setiap 4 detik
-        }
-
-        // Untuk Subjudul (Lama)
-        const animatedSubtitle = document.getElementById('animated-subtitle');
-        if(animatedSubtitle) {
-            const subtitleOptions = [
+        const animatedText = document.getElementById('animated-subtitle');
+        if(animatedText) {
+            const textOptions = [
                 "Temukan sumber referensi untuk menunjang perkuliahan Anda.",
                 "Jelajahi ribuan e-book dari berbagai kategori.",
                 "Bergabunglah dalam diskusi untuk setiap buku.",
                 "Pengetahuan ada di ujung jarimu."
             ];
-            let subtitleIndex = 0;
-            function changeSubtitle() {
-                animatedSubtitle.style.opacity = 0;
+            let currentIndex = 0;
+            function changeText() {
+                animatedText.style.opacity = 0;
                 setTimeout(() => {
-                    subtitleIndex = (subtitleIndex + 1) % subtitleOptions.length;
-                    animatedSubtitle.textContent = subtitleOptions[subtitleIndex];
-                    animatedSubtitle.style.opacity = 1;
+                    currentIndex = (currentIndex + 1) % textOptions.length;
+                    animatedText.textContent = textOptions[currentIndex];
+                    animatedText.style.opacity = 1;
                 }, 500);
             }
-            setInterval(changeSubtitle, 4000);
+            setInterval(changeText, 4000);
         }
     });
   </script>

@@ -2,10 +2,8 @@
 session_start();
 include '../includes/db.php';
 
-// PERUBAHAN: Detail buku bisa dilihat tanpa login
 $is_logged_in = isset($_SESSION['user_id']);
 
-// Jika tidak ada ID buku di URL, kembalikan ke dashboard
 if (!isset($_GET['id'])) {
     header("Location: dashboard.php");
     exit;
@@ -13,13 +11,12 @@ if (!isset($_GET['id'])) {
 
 $book_id = $_GET['id'];
 
-// Ambil semua data untuk buku yang dipilih (gunakan tabel 'buku')
-$stmt = $conn->prepare("SELECT * FROM buku WHERE id = ?");
+// --- Mengambil data buku beserta rata-rata rating ---
+$stmt = $conn->prepare("SELECT *, (total_rating / IF(rating_count = 0, 1, rating_count)) as avg_rating FROM buku WHERE id = ?");
 $stmt->bind_param("i", $book_id);
 $stmt->execute();
 $result = $stmt->get_result();
 
-// Jika buku tidak ditemukan, kembalikan ke dashboard
 if ($result->num_rows === 0) {
     header("Location: dashboard.php");
     exit;
@@ -27,6 +24,20 @@ if ($result->num_rows === 0) {
 
 $book = $result->fetch_assoc();
 $stmt->close();
+
+// --- Mengambil rating yang sudah diberikan oleh pengguna (jika ada) ---
+$user_rating = 0;
+if($is_logged_in) {
+    $stmt_user_rating = $conn->prepare("SELECT rating FROM book_ratings WHERE buku_id = ? AND user_id = ?");
+    $stmt_user_rating->bind_param("ii", $book_id, $_SESSION['user_id']);
+    $stmt_user_rating->execute();
+    $user_rating_result = $stmt_user_rating->get_result();
+    if($user_rating_result->num_rows > 0) {
+        $user_rating = $user_rating_result->fetch_assoc()['rating'];
+    }
+    $stmt_user_rating->close();
+}
+
 $conn->close();
 ?>
 <!DOCTYPE html>
@@ -97,7 +108,6 @@ $conn->close();
         .details-list .value { color: #495057; }
         .action-buttons { margin-top: auto; padding-top: 1.5rem; }
 
-        /* Alert untuk pengunjung */
         .login-required-alert {
             background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
             color: white;
@@ -110,6 +120,18 @@ $conn->close();
             font-weight: bold;
         }
 
+        /* --- , sistem akan mengumpulkan semua rating yang masuk, menjumlahkannya, 
+        lalu membaginya dengan jumlah orang yang memberi rating untuk mendapatkan nilai 
+        rata-rata.  --- */
+        .rating-display { font-size: 1.2rem; }
+        .rating-stars { color: #ffc107; }
+        .rating-form .star-rating { display: flex; flex-direction: row-reverse; justify-content: flex-end; }
+        .rating-form .star-rating input[type="radio"] { display: none; }
+        .rating-form .star-rating label { font-size: 2rem; color: #ced4da; cursor: pointer; transition: color 0.2s; }
+        .rating-form .star-rating input[type="radio"]:checked ~ label,
+        .rating-form .star-rating label:hover,
+        .rating-form .star-rating label:hover ~ label { color: #ffc107; }
+
         html.dark-mode body { background-color: #18191a; }
         html.dark-mode .book-detail-card { background-color: #242526; border-color: #3a3b3c; }
         html.dark-mode .book-title,
@@ -120,6 +142,7 @@ $conn->close();
         html.dark-mode .details-list .value { color: #b0b3b8; }
         html.dark-mode .btn-outline-secondary { color: #e4e6eb; border-color: #6c757d; }
         html.dark-mode .btn-outline-secondary:hover { background-color: #6c757d; color: white; }
+        html.dark-mode .rating-form .star-rating label { color: #495057; }
     </style>
 </head>
 <body>
@@ -136,6 +159,19 @@ $conn->close();
                     <h1 class="book-title display-5"><?= htmlspecialchars($book['judul']) ?></h1>
                     <p class="author-name">oleh <?= htmlspecialchars($book['penulis']) ?></p>
                     
+                    <div class="d-flex align-items-center mb-3 rating-display">
+                        <div class="rating-stars me-2">
+                            <?php 
+                            $avg_rating_rounded = round($book['avg_rating']);
+                            for($i = 0; $i < 5; $i++):
+                                echo $i < $avg_rating_rounded ? '<i class="bi bi-star-fill"></i>' : '<i class="bi bi-star"></i>';
+                            endfor;
+                            ?>
+                        </div>
+                        <span class="fw-bold me-2"><?= number_format($book['avg_rating'], 1) ?></span>
+                        <span class="text-muted">(<?= $book['rating_count'] ?> rating)</span>
+                    </div>
+
                     <h5 class="section-title">Deskripsi</h5>
                     <p class="text-secondary"><?= nl2br(htmlspecialchars($book['deskripsi'])) ?></p>
 
@@ -162,11 +198,26 @@ $conn->close();
                             <span class="value"><span class="badge bg-primary rounded-pill fs-6"><?= htmlspecialchars($book['kategori'] ?? 'Umum') ?></span></span>
                         </li>
                     </ul>
-                </div>
+
+                    <?php if ($is_logged_in): ?>
+                    <div class="rating-form mt-4">
+                        <h5 class="section-title">Beri Rating Anda</h5>
+                        <form id="ratingForm" action="rate_handler.php" method="POST">
+                            <input type="hidden" name="buku_id" value="<?= $book_id ?>">
+                            <div class="star-rating">
+                                <input type="radio" id="star5" name="rating" value="5" <?= $user_rating == 5 ? 'checked' : '' ?> onchange="this.form.submit()" /><label for="star5" title="5 stars"><i class="bi bi-star-fill"></i></label>
+                                <input type="radio" id="star4" name="rating" value="4" <?= $user_rating == 4 ? 'checked' : '' ?> onchange="this.form.submit()" /><label for="star4" title="4 stars"><i class="bi bi-star-fill"></i></label>
+                                <input type="radio" id="star3" name="rating" value="3" <?= $user_rating == 3 ? 'checked' : '' ?> onchange="this.form.submit()" /><label for="star3" title="3 stars"><i class="bi bi-star-fill"></i></label>
+                                <input type="radio" id="star2" name="rating" value="2" <?= $user_rating == 2 ? 'checked' : '' ?> onchange="this.form.submit()" /><label for="star2" title="2 stars"><i class="bi bi-star-fill"></i></label>
+                                <input type="radio" id="star1" name="rating" value="1" <?= $user_rating == 1 ? 'checked' : '' ?> onchange="this.form.submit()" /><label for="star1" title="1 star"><i class="bi bi-star-fill"></i></label>
+                            </div>
+                        </form>
+                    </div>
+                    <?php endif; ?>
+                    </div>
                 
                 <div class="action-buttons">
                     <?php if ($is_logged_in): ?>
-                    <!-- User sudah login - Bisa akses semua fitur -->
                     <div class="d-grid gap-2">
                         <a href="baca_buku.php?file=<?= urlencode(basename($book['file_path'])) ?>&title=<?= urlencode($book['judul']) ?>" class="btn btn-success btn-lg">
                             <i class="bi bi-eye-fill"></i> Baca Buku Sekarang
@@ -179,10 +230,9 @@ $conn->close();
                         </a>
                     </div>
                     <?php else: ?>
-                    <!-- Pengunjung belum login - Langsung tampilkan tombol login -->
                     <div class="d-grid gap-2">
                         <a href="../login.php" class="btn btn-success btn-lg">
-                            <i class="bi bi-box-arrow-in-right"></i> Login untuk Baca Buku
+                            <i class="bi bi-box-arrow-in-right"></i> Login untuk Baca & Rating
                         </a>
                         <a href="../login.php" class="btn btn-primary btn-lg">
                             <i class="bi bi-chat-dots-fill"></i> Login untuk Diskusi
