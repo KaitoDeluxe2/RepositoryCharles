@@ -196,7 +196,7 @@ $books_result = $stmt_data->get_result();
             </a>
           </li>
           <li class="nav-item">
-            <a class="nav-link btn btn-light btn-sm text-dark" href="../register.html">
+            <a class="nav-link btn btn-primary btn-sm" href="../register.php">
               <i class="bi bi-person-plus-fill"></i> Register
             </a>
           </li>

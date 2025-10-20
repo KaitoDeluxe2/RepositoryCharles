@@ -10,32 +10,63 @@ if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'admin') {
 
 // --- LOGIKA AKSI ADMIN ---
 
-// [KODE BARU] Logika untuk Edit Mahasiswa
+// [DIPERBAIKI] Logika untuk Edit Mahasiswa
 if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['action']) && $_POST['action'] == 'edit_mahasiswa') {
     $nim_lama = $_POST['nim_lama'];
     $nim_baru = $_POST['nim_baru'];
     $nama_lengkap = $_POST['nama_lengkap'];
 
     if (!empty($nim_lama) && !empty($nim_baru) && !empty($nama_lengkap)) {
-        $stmt = $conn->prepare("UPDATE mahasiswa_resmi SET nim = ?, nama_lengkap = ? WHERE nim = ?");
-        $stmt->bind_param("sss", $nim_baru, $nama_lengkap, $nim_lama);
-        $stmt->execute();
-        $stmt->close();
-        header("Location: index.php?status=edit_mhs_sukses#kelola-mahasiswa");
-        exit;
+        if ($nim_lama !== $nim_baru) {
+            $stmt_check_mhs = $conn->prepare("SELECT nim FROM mahasiswa_resmi WHERE nim = ?");
+            $stmt_check_mhs->bind_param("s", $nim_baru);
+            $stmt_check_mhs->execute();
+            $stmt_check_mhs->store_result();
+            if ($stmt_check_mhs->num_rows > 0) {
+                $stmt_check_mhs->close();
+                header("Location: index.php?status=nim_sudah_ada&nim=" . urlencode($nim_baru) . "#kelola-mahasiswa");
+                exit;
+            }
+            $stmt_check_mhs->close();
+
+            $stmt_check_user = $conn->prepare("SELECT nim FROM users WHERE nim = ?");
+            $stmt_check_user->bind_param("s", $nim_baru);
+            $stmt_check_user->execute();
+            $stmt_check_user->store_result();
+            if ($stmt_check_user->num_rows > 0) {
+                $stmt_check_user->close();
+                header("Location: index.php?status=nim_dipakai_user&nim=" . urlencode($nim_baru) . "#kelola-mahasiswa");
+                exit;
+            }
+            $stmt_check_user->close();
+        }
+
+        $stmt_update = $conn->prepare("UPDATE mahasiswa_resmi SET nim = ?, nama_lengkap = ? WHERE nim = ?");
+        $stmt_update->bind_param("sss", $nim_baru, $nama_lengkap, $nim_lama);
+        if ($stmt_update->execute()) {
+            $stmt_update->close();
+            header("Location: index.php?status=edit_mhs_sukses#kelola-mahasiswa");
+            exit;
+        } else {
+            $stmt_update->close();
+            header("Location: index.php?status=gagal_update_mhs#kelola-mahasiswa");
+            exit;
+        }
     }
 }
 
-// [KODE BARU] Logika untuk Edit Pengguna
+
+// Logika untuk Edit Pengguna (NIM tidak diubah di sini)
 if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['action']) && $_POST['action'] == 'edit_user') {
     $user_id = $_POST['user_id'];
     $username = $_POST['username'];
     $email = $_POST['email'];
-    $nim = !empty($_POST['nim']) ? $_POST['nim'] : null; // Handle jika NIM kosong
+    // NIM tidak lagi diambil dari form ini untuk di-update
 
     if (!empty($user_id) && !empty($username) && !empty($email)) {
-        $stmt = $conn->prepare("UPDATE users SET username = ?, email = ?, nim = ? WHERE id = ?");
-        $stmt->bind_param("sssi", $username, $email, $nim, $user_id);
+        // Query UPDATE tanpa mengubah NIM
+        $stmt = $conn->prepare("UPDATE users SET username = ?, email = ? WHERE id = ?");
+        $stmt->bind_param("ssi", $username, $email, $user_id);
         $stmt->execute();
         $stmt->close();
         header("Location: index.php?status=edit_user_sukses#kelola-akun");
@@ -45,6 +76,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['action']) && $_POST['a
 
 // Logika Tambah Buku
 if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['action']) && $_POST['action'] == 'add_book') {
+    // ... (kode tambah buku tidak berubah) ...
     $judul = $_POST['judul'];
     $penulis = $_POST['penulis'];
     $penerbit = $_POST['penerbit'];
@@ -57,7 +89,6 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['action']) && $_POST['a
     move_uploaded_file($_FILES['cover']['tmp_name'], $cover_path_for_upload);
     $file_path_for_db = 'ebooks/' . time() . '_' . basename($_FILES['file_buku']['name']);
     $file_path_for_upload = '../' . $file_path_for_db;
-    move_uploaded_file($_FILES['file_buku']['tmp_name'], $file_path_for_upload);
     $stmt = $conn->prepare("INSERT INTO buku (judul, penulis, penerbit, tahun_terbit, isbn, kategori, deskripsi, cover_path, file_path) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)");
     $stmt->bind_param("sssisssss", $judul, $penulis, $penerbit, $tahun_terbit, $isbn, $kategori, $deskripsi, $cover_path_for_db, $file_path_for_db);
     $stmt->execute();
@@ -68,6 +99,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['action']) && $_POST['a
 
 // Logika Hapus Buku
 if ($_SERVER["REQUEST_METHOD"] == "GET" && isset($_GET['action']) && $_GET['action'] == 'delete_book') {
+    // ... (kode hapus buku tidak berubah) ...
     $id = $_GET['id'];
     $stmt = $conn->prepare("SELECT cover_path, file_path FROM buku WHERE id = ?");
     $stmt->bind_param("i", $id);
@@ -91,17 +123,36 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['action']) && $_POST['a
     $nim = $_POST['nim'];
     $nama_lengkap = $_POST['nama_lengkap'];
     if (!empty($nim) && !empty($nama_lengkap)) {
-        $stmt = $conn->prepare("INSERT INTO mahasiswa_resmi (nim, nama_lengkap) VALUES (?, ?)");
-        $stmt->bind_param("ss", $nim, $nama_lengkap);
-        $stmt->execute();
-        $stmt->close();
-        header("Location: index.php?status=tambah_mhs_sukses#kelola-mahasiswa");
-        exit;
+        $stmt_check = $conn->prepare("SELECT nim FROM mahasiswa_resmi WHERE nim = ?");
+        $stmt_check->bind_param("s", $nim);
+        $stmt_check->execute();
+        $stmt_check->store_result();
+
+        if ($stmt_check->num_rows > 0) {
+            $stmt_check->close();
+            header("Location: index.php?status=nim_sudah_ada&nim=" . urlencode($nim) . "#kelola-mahasiswa");
+            exit;
+        }
+        $stmt_check->close();
+        
+        $stmt_insert = $conn->prepare("INSERT INTO mahasiswa_resmi (nim, nama_lengkap) VALUES (?, ?)");
+        $stmt_insert->bind_param("ss", $nim, $nama_lengkap);
+        
+        if ($stmt_insert->execute()) {
+            $stmt_insert->close();
+            header("Location: index.php?status=tambah_mhs_sukses#kelola-mahasiswa");
+            exit;
+        } else {
+            $stmt_insert->close();
+            header("Location: index.php?status=gagal_insert#kelola-mahasiswa");
+            exit;
+        }
     }
 }
 
 // Logika Hapus Mahasiswa
 if ($_SERVER["REQUEST_METHOD"] == "GET" && isset($_GET['action']) && $_GET['action'] == 'delete_mahasiswa') {
+    // ... (kode hapus mahasiswa tidak berubah) ...
     $nim = $_GET['nim'];
     $stmt = $conn->prepare("DELETE FROM mahasiswa_resmi WHERE nim = ?");
     $stmt->bind_param("s", $nim);
@@ -113,6 +164,7 @@ if ($_SERVER["REQUEST_METHOD"] == "GET" && isset($_GET['action']) && $_GET['acti
 
 // Logika Hapus User
 if ($_SERVER["REQUEST_METHOD"] == "GET" && isset($_GET['action']) && $_GET['action'] == 'delete_user') {
+    // ... (kode hapus user tidak berubah) ...
     $id = $_GET['id'];
     if ($id != $_SESSION['user_id']) {
         $stmt = $conn->prepare("DELETE FROM users WHERE id = ?");
@@ -126,6 +178,7 @@ if ($_SERVER["REQUEST_METHOD"] == "GET" && isset($_GET['action']) && $_GET['acti
 
 // Logika Update Role
 if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['action']) && $_POST['action'] == 'update_role') {
+    // ... (kode update role tidak berubah) ...
     $id = $_POST['user_id'];
     $role = $_POST['role'];
     if ($id != $_SESSION['user_id']) {
@@ -139,6 +192,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['action']) && $_POST['a
 }
 
 // --- PENGAMBILAN DATA & LOGIKA PENCARIAN ---
+// ... (semua query SELECT tidak berubah) ...
 $total_users = $conn->query("SELECT COUNT(id) as total FROM users")->fetch_assoc()['total'];
 $total_mahasiswa_resmi = $conn->query("SELECT COUNT(nim) as total FROM mahasiswa_resmi")->fetch_assoc()['total'];
 $total_buku = $conn->query("SELECT COUNT(id) as total FROM buku")->fetch_assoc()['total'];
@@ -187,6 +241,7 @@ $users_result = $conn->query($sql_users);
     </script>
 
     <style>
+        /* ... (CSS tidak berubah) ... */
         :root {
             --light-bg: #f0f2f5;
             --dark-bg: #18191a;
@@ -212,17 +267,15 @@ $users_result = $conn->query($sql_users);
             background-color: #fff; 
             border-radius: 0.75rem; 
             box-shadow: 0 4px 15px rgba(0,0,0,0.05);
-            border: 1px solid #dee2e6; /* Border untuk light mode */
+            border: 1px solid #dee2e6;
         }
         .table-custom img { width: 45px; height: 60px; object-fit: cover; border-radius: 0.25rem; }
         .table-scroll-container { max-height: 450px; overflow-y: auto; }
         .table-scroll-container thead th { position: sticky; top: 0; z-index: 1; }
-        
-        /* Dark Mode Styles */
         html.dark-mode body { background-color: var(--dark-bg); color: var(--dark-text-primary); }
         html.dark-mode .admin-card { 
             background-color: var(--dark-surface); 
-            border: 1px solid #4a4a4d; /* Border untuk dark mode */
+            border: 1px solid #4a4a4d;
         }
         html.dark-mode .card-header.bg-white { background-color: var(--dark-surface) !important; border-bottom: 1px solid var(--dark-surface-2); }
         html.dark-mode h1, html.dark-mode h2, html.dark-mode h4, html.dark-mode h5 { color: var(--dark-text-primary); }
@@ -237,8 +290,6 @@ $users_result = $conn->query($sql_users);
         html.dark-mode .table b, html.dark-mode .table strong { color: var(--dark-text-primary); }
         html.dark-mode .table-scroll-container thead th { background-color: #343a40; }
         html.dark-mode .btn-close { filter: invert(1) grayscale(100%); }
-
-        /* Responsive Styles */
         @media (max-width: 991.98px) {
             .wrapper { flex-direction: column; }
             .sidebar { position: static; width: 100%; height: auto; margin-bottom: 1rem; }
@@ -258,7 +309,6 @@ $users_result = $conn->query($sql_users);
             <li class="nav-item mt-3"><a class="nav-link" href="../pages/dashboard.php"><i class="bi bi-arrow-left-circle me-2"></i> Kembali ke Situs</a></li>
         </ul>
     </div>
-
     <div class="main-content">
         
         <?php
@@ -274,6 +324,16 @@ $users_result = $conn->query($sql_users);
                 case 'hapus_user_sukses': $message = '<strong>Berhasil!</strong> Akun pengguna telah dihapus.'; break;
                 case 'edit_mhs_sukses': $message = '<strong>Berhasil!</strong> Data mahasiswa telah diperbarui.'; break;
                 case 'edit_user_sukses': $message = '<strong>Berhasil!</strong> Data pengguna telah diperbarui.'; break;
+                case 'nim_sudah_ada':
+                    $nim_error = isset($_GET['nim']) ? htmlspecialchars($_GET['nim']) : '';
+                    $message = '<strong>Gagal!</strong> NIM <strong>' . $nim_error . '</strong> sudah terdaftar di sistem.';
+                    $alert_type = 'danger';
+                    break;
+                case 'nim_dipakai_user':
+                    $nim_error = isset($_GET['nim']) ? htmlspecialchars($_GET['nim']) : '';
+                    $message = '<strong>Gagal!</strong> NIM <strong>' . $nim_error . '</strong> sudah digunakan oleh akun lain.';
+                    $alert_type = 'danger';
+                    break;
             }
             if ($message) { echo '<div class="alert alert-' . $alert_type . ' alert-dismissible fade show" role="alert">' . $message . '<button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button></div>'; }
         }
@@ -373,7 +433,7 @@ $users_result = $conn->query($sql_users);
                 </div>
             </div>
         </div>
-
+        
         <div class="admin-card" id="kelola-akun">
             <div class="card-header bg-white py-3"><h4 class="mb-0"><i class="bi bi-person-gear me-2"></i> Kelola Akun Pengguna</h4></div>
             <div class="card-body p-4">
@@ -476,8 +536,8 @@ $users_result = $conn->query($sql_users);
                 <input type="email" class="form-control" id="edit-email" name="email" required>
             </div>
             <div class="mb-3">
-                <label for="edit-nim-user" class="form-label">NIM (Opsional)</label>
-                <input type="text" class="form-control" id="edit-nim-user" name="nim">
+                <label for="edit-nim-user" class="form-label">NIM (Tidak dapat diubah)</label>
+                <input type="text" class="form-control" id="edit-nim-user" name="nim" readonly>
             </div>
         </div>
         <div class="modal-footer">
@@ -488,12 +548,10 @@ $users_result = $conn->query($sql_users);
     </div>
   </div>
 </div>
-
-
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
 <script>
 document.addEventListener('DOMContentLoaded', function () {
-    // Modal Edit Mahasiswa
+    // ... (Script tidak berubah) ...
     var editMahasiswaModal = document.getElementById('editMahasiswaModal');
     if(editMahasiswaModal) {
         editMahasiswaModal.addEventListener('show.bs.modal', function (event) {
@@ -511,7 +569,6 @@ document.addEventListener('DOMContentLoaded', function () {
         });
     }
 
-    // Modal Edit Pengguna
     var editUserModal = document.getElementById('editUserModal');
     if(editUserModal) {
         editUserModal.addEventListener('show.bs.modal', function (event) {
