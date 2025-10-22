@@ -6,12 +6,12 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
     $username = $_POST['username'];
     $password = $_POST['password'];
 
-    // [DIUBAH] Tambahkan 'nim' ke dalam query SELECT
+    // Tambahkan 'nim' ke dalam query SELECT
     $stmt = $conn->prepare("SELECT id, username, email, nim, password, role, avatar_seed FROM users WHERE username = ?");
     $stmt->bind_param("s", $username);
     $stmt->execute();
     $result = $stmt->get_result();
-
+//arahkan berdasarkan role
     if ($result->num_rows === 1) {
         $user = $result->fetch_assoc();
         if (password_verify($password, $user['password'])) {
@@ -22,7 +22,6 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
             $_SESSION['avatar_seed'] = $user['avatar_seed'];
             // [KODE BARU] Simpan nim ke session
             $_SESSION['nim'] = $user['nim'];
-
             if ($_SESSION['role'] === 'admin') {
                 header("Location: admin/");
             } else {

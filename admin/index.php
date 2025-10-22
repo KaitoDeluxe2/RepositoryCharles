@@ -8,7 +8,7 @@ if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'admin') {
     exit;
 }
 
-// --- LOGIKA AKSI ADMIN ---
+// --- AKSI ADMIN ---
 
 // [DIPERBAIKI] Logika untuk Edit Mahasiswa
 if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['action']) && $_POST['action'] == 'edit_mahasiswa') {
